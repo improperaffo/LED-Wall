@@ -117,6 +117,17 @@
     <div id="sources"></div>
   </div>
 
+  <div class="card">
+    <h2>Rain warning</h2>
+    <div class="times">
+      <span>Red <b style="color:var(--err)">!</b> when chance ≥</span>
+      <input type="number" id="rainProb" min="1" max="100" step="5" aria-label="Rain probability percent"> <span>%</span>
+      <span>or ≥</span>
+      <input type="number" id="rainMm" min="0.1" max="50" step="0.1" aria-label="Rain amount mm"> <span>mm in 3 h</span>
+    </div>
+    <p class="hint">Used by Timeline, Now + next 15 h and Rain outlook.</p>
+  </div>
+
   <div class="card" id="alertsCard">
     <label class="toggle"><input type="checkbox" id="alerts"> <span><b>Flight alerts</b><br>
       <span class="hint" style="margin:0">A new aircraft close and low jumps to the flights widget (rotate mode, flights enabled).</span></span></label>
@@ -193,6 +204,9 @@ function render() {
   }));
   $("alerts").checked = S.flight_alerts;
 
+  if (document.activeElement !== $("rainProb")) $("rainProb").value = S.rain.prob;
+  if (document.activeElement !== $("rainMm")) $("rainMm").value = S.rain.mm;
+
   const h = S.hours;
   $("hoursOn").checked = h.enabled;
   $("hoursBody").setAttribute("aria-disabled", String(!h.enabled));
@@ -255,6 +269,8 @@ document.querySelectorAll("[data-mode]").forEach((b) =>
   b.onclick = () => { S.mode = b.dataset.mode; changed(); });
 $("single").onchange = (e) => { S.single = e.target.value; changed(); };
 $("alerts").onchange = (e) => { S.flight_alerts = e.target.checked; changed(); };
+$("rainProb").onchange = (e) => { S.rain.prob = Number(e.target.value); changed(); };
+$("rainMm").onchange = (e) => { S.rain.mm = Number(e.target.value); changed(); };
 $("hoursOn").onchange = (e) => { S.hours.enabled = e.target.checked; changed(); };
 $("hStart").onchange = (e) => { if (e.target.value) { S.hours.start = e.target.value; changed(); } };
 $("hEnd").onchange = (e) => { if (e.target.value) { S.hours.end = e.target.value; changed(); } };

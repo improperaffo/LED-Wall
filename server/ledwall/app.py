@@ -6,6 +6,7 @@ from pathlib import Path
 from .settings import Settings
 from .screens.clock import Clock
 from .screens.flights import Flights
+from .screens.outlook import NowNext, RainFirst, Timeline
 from .screens.weather import Forecast, Weather
 from .sources.adsb import Adsb
 from .sources.meteoswiss import MeteoSwiss
@@ -29,9 +30,11 @@ class App:
         self.weather = MeteoSwiss(loc["plz"])
         self.adsb = Adsb(loc["lat"], loc["lon"], fl["radius_km"], fl["poll_s"])
         self.flights = Flights(self.adsb, fl["alert_km"], fl["alert_max_alt_ft"])
-        self.screens = {s.name: s for s in (
-            Clock(self.weather), Weather(self.weather), Forecast(self.weather), self.flights)}
         self.settings = settings or Settings(cfg)
+        self.screens = {s.name: s for s in (
+            Clock(self.weather), Weather(self.weather), Forecast(self.weather), self.flights,
+            Timeline(self.weather, self.settings), NowNext(self.weather, self.settings),
+            RainFirst(self.weather, self.settings))}
         self._current = None   # name of the widget on screen
         self._since = 0.0
         self.apply_settings()
@@ -56,7 +59,9 @@ class App:
         s = self.settings.data
         if s["mode"] == "single":
             scr = self.screens[s["single"]]
-            self._current = scr.name if scr.ready() else "clock"
+            # widgets with a meaningful empty state (flights: "No aircraft") stay up; others
+            # (weather before its first fetch) fall back to the clock
+            self._current = scr.name if scr.ready() or scr.shows_empty else "clock"
             return self.screens[self._current]
 
         rotation = [(w["name"], w["seconds"]) for w in s["widgets"] if w["enabled"]]

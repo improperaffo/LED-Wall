@@ -18,6 +18,9 @@ WIDGETS = {
     "weather": ("Weather + 40 h chart", "weather"),
     "forecast": ("3-day forecast", "weather"),
     "flights": ("Flights overhead", "flights"),
+    "timeline": ("Timeline 24 h (rain !)", "weather"),
+    "nownext": ("Now + next 15 h", "weather"),
+    "rain": ("Rain outlook 48 h", "weather"),
 }
 SOURCES = {
     # name -> (label, min seconds, max seconds); minimums keep us polite to the APIs
@@ -43,12 +46,24 @@ def defaults(cfg: dict) -> dict:
         "refresh": {"weather": 600, "flights": int(cfg["flights"]["poll_s"])},
         # panel only lights up during these hours (Mon-Sat 08:00-19:00)
         "hours": {"enabled": True, "days": [0, 1, 2, 3, 4, 5], "start": "08:00", "end": "19:00"},
+        # red ! on a 3 h slot when rain is at least this likely or this much is forecast
+        "rain": {"prob": 30, "mm": 0.2},
     }
 
 
 def _int(v, lo: int, hi: int, what: str) -> int:
     try:
         n = int(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"{what}: not a number")
+    if not lo <= n <= hi:
+        raise ValueError(f"{what}: must be between {lo} and {hi}")
+    return n
+
+
+def _float(v, lo: float, hi: float, what: str) -> float:
+    try:
+        n = round(float(v), 1)
     except (TypeError, ValueError):
         raise ValueError(f"{what}: not a number")
     if not lo <= n <= hi:
@@ -96,6 +111,10 @@ def validate(data: dict, base: dict) -> dict:
         raise ValueError("operating hours: start and end must differ")
     out["hours"] = {"enabled": bool(hours.get("enabled", True)), "days": sorted(set(days)),
                     "start": hours["start"], "end": hours["end"]}
+
+    rain = {**base["rain"], **(data.get("rain") or {})}
+    out["rain"] = {"prob": _int(rain.get("prob"), 1, 100, "rain probability"),
+                   "mm": _float(rain.get("mm"), 0.1, 50, "rain amount")}
 
     refresh = {**base["refresh"], **(data.get("refresh") or {})}
     out["refresh"] = {src: _int(refresh.get(src), lo, hi, f"{label} refresh")

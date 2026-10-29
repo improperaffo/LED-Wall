@@ -24,8 +24,8 @@ def font(name: str) -> ImageFont.ImageFont:
     return _fonts[name]
 
 
-def canvas() -> tuple[Image.Image, ImageDraw.ImageDraw]:
-    img = Image.new("RGB", (W, H))
+def canvas(size: tuple[int, int] = (W, H)) -> tuple[Image.Image, ImageDraw.ImageDraw]:
+    img = Image.new("RGB", size)
     return img, ImageDraw.Draw(img)
 
 

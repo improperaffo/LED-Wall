@@ -18,7 +18,12 @@ MeteoSwiss / adsb.lol ──HTTPS──> server (Python + Pillow, renders the fr
 | `clock` | HH:MM with a blinking colon, date, current temperature | local time, MeteoSwiss |
 | `weather` | Icon, current temperature, today's min/max. Next 40 h as a temperature line with rain bars, night shading and midnight markers | MeteoSwiss app API (`plzDetail`) |
 | `forecast` | Three days: weekday, icon, min/max, rain | MeteoSwiss |
-| `flights` | Nearest airborne aircraft: airline (in its colour), route `GVA→SUF`, callsign, type, altitude, distance, track arrow | [adsb.lol](https://adsb.lol) + VRS route data |
+| `flights` | Nearest airborne aircraft: airline (in its colour), route `GVA→SUF`, callsign, type, altitude, distance, track arrow. With an empty sky it shows "No aircraft" and the last plane seen | [adsb.lol](https://adsb.lol) + VRS route data |
+| `timeline` | MeteoSwiss-style 24 h strip: eight 3-hour slots (hour, icon, red **!** when rain is likely) over a temperature curve with hourly rain bars and night shading | MeteoSwiss (3 h icons, rain probability, hourly rain) |
+| `nownext` | Big current icon and temperature, today's min/max; next five 3-hour slots with icon, temperature, rain-probability bar and % (red with **!** when likely) | MeteoSwiss |
+| `rain` | Rain first: "Rain 18:00 · 4.2 mm" headline (or "Dry next 48 h"), 24 hourly rain bars with probability behind them, 3-hour icon strip | MeteoSwiss |
+
+`timeline`, `nownext` and `rain` draw at the native 128×64. The red **!** threshold (probability % and mm per 3 h) is set on the control page.
 
 A screen without data is skipped. A new aircraft that comes close and low can interrupt the rotation.
 
@@ -104,7 +109,7 @@ python3 preview.py flights --fake-flight
 
 Subclass `Screen` in `server/ledwall/screens/`. Implement `render(now)`, which returns `(image, seconds_until_next_frame)`, and optionally `ready()`. Register the screen in `ledwall/app.py`, and add it to `WIDGETS` in `ledwall/settings.py` with its label and data source. It then appears on the control page.
 
-Screens draw on a 64×32 canvas. The server scales it 2× (nearest neighbour) to the 128×64 panel before sending. Fonts are public-domain X11 BDF fonts in `server/fonts/`, converted to PIL format on first use.
+Screens draw either on a 64×32 canvas, which the server scales 2× (nearest neighbour) before sending, or at the native 128×64 (`canvas((128, 64))`). Fonts are public-domain X11 BDF fonts in `server/fonts/`, converted to PIL format on first use.
 
 ### Wire protocol
 

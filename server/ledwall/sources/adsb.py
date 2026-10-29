@@ -18,6 +18,7 @@ class Adsb(Poller):
         super().__init__(interval)
         self.lat, self.lon, self.radius_km = lat, lon, radius_km
         self.aircraft: list[dict] = []   # nearest first, airborne only
+        self.last_seen: tuple[float, dict] | None = None  # (time, aircraft) of the last nearest one
         self.updated = 0.0
         self._routes: dict[str, tuple[float, dict | None]] = {}
 
@@ -57,6 +58,8 @@ class Adsb(Poller):
                     log.debug("route %s: %s", a["callsign"], e)
         self.aircraft = out
         self.updated = time.time()
+        if out:
+            self.last_seen = (self.updated, out[0])
         log.debug("%d aircraft within %.0f km", len(self.aircraft), self.radius_km)
 
     @property

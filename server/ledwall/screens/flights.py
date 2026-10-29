@@ -22,6 +22,7 @@ def draw_arrow(d, cx: float, cy: float, track: float, r: float = 3.5):
 class Flights(Screen):
     """FlightWall style: the nearest airborne aircraft."""
     name = "flights"
+    shows_empty = True
 
     def __init__(self, adsb, alert_km: float, alert_max_alt_ft: float):
         self.adsb = adsb
@@ -47,8 +48,17 @@ class Flights(Screen):
         img, d = canvas()
         a = self.adsb.nearest
         if a is None:
-            text(d, 32, 12, "no aircraft", font("5x7"), DIM, anchor="c")
-            return img, 1.0
+            f4 = font("4x6")
+            text(d, 32, 2, "No aircraft", font("5x7"), LINE, anchor="c")
+            text(d, 32, 11, f"within {self.adsb.radius_km:.0f} km", f4, DIM, anchor="c")
+            if self.adsb.last_seen:
+                t, last = self.adsb.last_seen
+                cs = last["callsign"] or last.get("r") or last["hex"].upper()
+                mins = int((now - t) // 60)
+                ago = "just now" if mins < 1 else f"{mins} min ago" if mins < 60 else f"{mins // 60} h ago"
+                text(d, 32, 19, f"last {cs}", f4, SUB, anchor="c")
+                text(d, 32, 26, ago, f4, DIM, anchor="c")
+            return img, 5.0
         cs = a["callsign"] or a.get("r") or a["hex"].upper()
         route = a.get("route") or {}
         name, color = airline(cs)

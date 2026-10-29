@@ -1,0 +1,15 @@
+[Unit]
+Description=ledwall LED matrix frame server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=sens
+WorkingDirectory=/home/sens/ledwall/server
+ExecStart=/usr/bin/python3 -m ledwall
+Restart=always
+RestartSec=5
+Environment=TZ=Europe/Zurich
+
+[Install]
+WantedBy=multi-user.target

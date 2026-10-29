@@ -1,0 +1,7 @@
+firmware/include/secrets.h
+firmware/.pio/
+__pycache__/
+*.pyc
+server/fonts/*.pil
+server/fonts/*.pbm
+server/preview/

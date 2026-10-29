@@ -28,7 +28,8 @@ The server serves a control page on port 8080, e.g. `http://pigate.local:8080`. 
 - switch between **Rotate** (cycle through the ticked widgets in order, each for its own number of seconds) and **Single widget** (one widget stays up);
 - reorder the widgets, use **Show now**, and watch a live preview of the panel;
 - set how often each data source is re-fetched (weather at least every 60 s, flights at least every 5 s). A source no visible widget uses drops to polling every 5 min;
-- turn flight alerts on or off.
+- turn flight alerts on or off;
+- set **operating hours**: the days and the window during which the panel lights up (default Mon–Sat 08:00–19:00). Outside them the panel is dark and data is fetched only every 30 min. A window may run past midnight.
 
 Changes apply immediately and auto-save to `~/.local/state/ledwall/settings.json`. That file is outside the code tree, so deploys don't touch it.
 
@@ -41,7 +42,7 @@ The page is backed by a small JSON API:
 | `GET` | `/api/settings` | Settings and widget/source metadata |
 | `PUT` | `/api/settings` | Update settings (partial updates allowed); returns 400 with an error message if invalid |
 | `POST` | `/api/show` | `{"name": "weather"}`: jump to that widget now |
-| `GET` | `/api/status` | Widget on the panel, connected panels, data age |
+| `GET` | `/api/status` | On/off (operating hours), widget on the panel, connected panels, data age |
 | `GET` | `/api/frame.png` | The current frame, rendered with an LED look |
 
 ## Hardware

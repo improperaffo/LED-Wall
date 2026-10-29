@@ -58,6 +58,14 @@
   label.toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; }
   .save { font-size: 13px; min-height: 1.4em; margin-top: 10px; }
   .save.ok { color: var(--ok); } .save.err { color: var(--err); }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 12px 0; }
+  .days button { border: 1px solid var(--line); background: var(--input); color: var(--text); border-radius: 8px;
+                 height: 34px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 0; }
+  .days button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .times { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  input[type=time] { font: inherit; color: var(--text); background: var(--input); border: 1px solid var(--line);
+                     border-radius: 8px; padding: 6px 8px; }
+  #hoursBody[aria-disabled="true"] { opacity: .4; pointer-events: none; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -68,6 +76,19 @@
 
   <div class="card">
     <img class="preview" id="preview" alt="" aria-label="Current panel image">
+  </div>
+
+  <div class="card">
+    <h2>Operating hours</h2>
+    <label class="toggle"><input type="checkbox" id="hoursOn"> <b>Only light up during these hours</b></label>
+    <div id="hoursBody">
+      <div class="days" id="days" role="group" aria-label="Days"></div>
+      <div class="times">
+        <input type="time" id="hStart" aria-label="On from"> <span>to</span>
+        <input type="time" id="hEnd" aria-label="Off at">
+      </div>
+      <p class="hint" id="hoursHint"></p>
+    </div>
   </div>
 
   <div class="card">
@@ -171,6 +192,24 @@ function render() {
     return row;
   }));
   $("alerts").checked = S.flight_alerts;
+
+  const h = S.hours;
+  $("hoursOn").checked = h.enabled;
+  $("hoursBody").setAttribute("aria-disabled", String(!h.enabled));
+  $("days").replaceChildren(...META.days.map((name, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = name;
+    b.setAttribute("aria-pressed", String(h.days.includes(i)));
+    b.onclick = () => {
+      h.days = h.days.includes(i) ? h.days.filter((d) => d !== i) : [...h.days, i].sort();
+      changed();
+    };
+    return b;
+  }));
+  if (document.activeElement !== $("hStart")) $("hStart").value = h.start;
+  if (document.activeElement !== $("hEnd")) $("hEnd").value = h.end;
+  $("hoursHint").textContent = !h.enabled ? "Always on." : !h.days.length ? "No days selected: the panel stays off."
+    : `Off outside these hours${h.start > h.end ? " (window runs past midnight)" : ""}; data is then fetched only every 30 min.`;
 }
 
 function changed() {
@@ -203,7 +242,8 @@ async function poll() {
     const st = await api("GET", "/api/status");
     const ages = Object.entries(st.data_age_s).filter(([, a]) => a !== null)
       .map(([k, a]) => `${k} ${fmt(a)} ago`).join(", ");
-    $("status").textContent = `On panel: ${st.showing ? label(st.showing) : "–"} · ` +
+    $("status").textContent = (st.on ? `On panel: ${st.showing ? label(st.showing) : "–"}`
+                                     : "Panel off (outside operating hours)") + " · " +
       (st.panels ? "panel connected" : "panel offline") + (ages ? ` · data: ${ages}` : "");
     live = st.showing;  // move the marker only: a re-render would steal focus from inputs
     document.querySelectorAll(".row").forEach((r) => r.classList.toggle("live", r.dataset.name === live));
@@ -215,6 +255,9 @@ document.querySelectorAll("[data-mode]").forEach((b) =>
   b.onclick = () => { S.mode = b.dataset.mode; changed(); });
 $("single").onchange = (e) => { S.single = e.target.value; changed(); };
 $("alerts").onchange = (e) => { S.flight_alerts = e.target.checked; changed(); };
+$("hoursOn").onchange = (e) => { S.hours.enabled = e.target.checked; changed(); };
+$("hStart").onchange = (e) => { if (e.target.value) { S.hours.start = e.target.value; changed(); } };
+$("hEnd").onchange = (e) => { if (e.target.value) { S.hours.end = e.target.value; changed(); } };
 
 // The server embeds the settings in the page; fall back to fetching them.
 const INITIAL = /*INITIAL*/null;

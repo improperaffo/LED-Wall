@@ -95,6 +95,7 @@ class Web:
         now = time.time()
         age = lambda t: round(now - t) if t else None  # noqa: E731
         return {
+            "on": self.app.settings.is_on(now),
             "showing": self.app._current,
             "panels": len(self.hub.clients),
             "brightness": self.hub.brightness,

@@ -18,7 +18,8 @@ def load_config(path: Path | None = None) -> dict:
         return tomllib.load(f)
 
 
-IDLE_POLL_S = 300  # flights nobody is looking at: poll rarely
+IDLE_POLL_S = 300   # flights nobody is looking at: poll rarely
+OFF_POLL_S = 1800   # outside operating hours
 
 
 class App:
@@ -38,6 +39,10 @@ class App:
     def apply_settings(self):
         """Push poll intervals to the data sources after a settings change."""
         s = self.settings.data
+        if not self.settings.is_on():
+            self.weather.set_interval(OFF_POLL_S)
+            self.adsb.set_interval(OFF_POLL_S)
+            return
         self.weather.set_interval(s["refresh"]["weather"])
         flights_shown = "flights" in self.settings.active()
         self.adsb.set_interval(s["refresh"]["flights"] if flights_shown else IDLE_POLL_S)

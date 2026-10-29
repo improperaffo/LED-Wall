@@ -6,6 +6,8 @@ provides the first-run defaults.
 import json
 import logging
 import os
+import re
+import time
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -23,6 +25,8 @@ SOURCES = {
     "flights": ("Flights (adsb.lol)", 5, 3600),
 }
 SECONDS_RANGE = (2, 3600)
+DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 STATE_PATH = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "ledwall" / "settings.json"
 
 
@@ -37,6 +41,8 @@ def defaults(cfg: dict) -> dict:
         "flight_alerts": True,
         "widgets": widgets,
         "refresh": {"weather": 600, "flights": int(cfg["flights"]["poll_s"])},
+        # panel only lights up during these hours (Mon-Sat 08:00-19:00)
+        "hours": {"enabled": True, "days": [0, 1, 2, 3, 4, 5], "start": "08:00", "end": "19:00"},
     }
 
 
@@ -79,6 +85,18 @@ def validate(data: dict, base: dict) -> dict:
         raise ValueError("enable at least one widget to rotate")
     out["widgets"] = widgets
 
+    hours = {**base["hours"], **(data.get("hours") or {})}
+    days = hours.get("days")
+    if not isinstance(days, list) or not all(isinstance(x, int) and 0 <= x <= 6 for x in days):
+        raise ValueError("hours.days must be weekday numbers 0 (Mon) to 6 (Sun)")
+    for k in ("start", "end"):
+        if not isinstance(hours.get(k), str) or not HHMM.match(hours[k]):
+            raise ValueError(f"hours.{k} must be HH:MM")
+    if hours["start"] == hours["end"]:
+        raise ValueError("operating hours: start and end must differ")
+    out["hours"] = {"enabled": bool(hours.get("enabled", True)), "days": sorted(set(days)),
+                    "start": hours["start"], "end": hours["end"]}
+
     refresh = {**base["refresh"], **(data.get("refresh") or {})}
     out["refresh"] = {src: _int(refresh.get(src), lo, hi, f"{label} refresh")
                       for src, (label, lo, hi) in SOURCES.items()}
@@ -105,6 +123,18 @@ class Settings:
         tmp.replace(self.path)
         return self.data
 
+    def is_on(self, now: float | None = None) -> bool:
+        """Inside operating hours? A window may run past midnight (start > end): it then
+        belongs to the day it starts on."""
+        h = self.data["hours"]
+        if not h["enabled"]:
+            return True
+        lt = time.localtime(now if now is not None else time.time())
+        hm, wd = time.strftime("%H:%M", lt), lt.tm_wday
+        if h["start"] < h["end"]:
+            return wd in h["days"] and h["start"] <= hm < h["end"]
+        return (wd in h["days"] and hm >= h["start"]) or ((wd - 1) % 7 in h["days"] and hm < h["end"])
+
     def active(self) -> list[str]:
         """Widgets that can appear on the panel under the current settings."""
         if self.data["mode"] == "single":
@@ -117,4 +147,5 @@ class Settings:
             "widgets": [{"name": n, "label": label, "source": src} for n, (label, src) in WIDGETS.items()],
             "sources": [{"name": n, "label": label, "min": lo, "max": hi} for n, (label, lo, hi) in SOURCES.items()],
             "seconds": {"min": SECONDS_RANGE[0], "max": SECONDS_RANGE[1]},
+            "days": DAYS,
         }

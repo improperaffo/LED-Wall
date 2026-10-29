@@ -81,12 +81,13 @@ def to_rgb565(img: Image.Image, size: tuple[int, int] = (W, H)) -> bytes:
 
 def led_preview(img: Image.Image, scale: int = 10) -> Image.Image:
     """Upscale to look like the panel: round-ish LEDs on black."""
-    big = Image.new("RGB", (W * scale, H * scale), (8, 8, 8))
+    w, h = img.size
+    big = Image.new("RGB", (w * scale, h * scale), (8, 8, 8))
     d = ImageDraw.Draw(big)
     px = img.load()
     m = max(1, scale // 6)
-    for y in range(H):
-        for x in range(W):
+    for y in range(h):
+        for x in range(w):
             c = px[x, y]
             if c != (0, 0, 0):
                 d.ellipse((x * scale + m, y * scale + m, (x + 1) * scale - m - 1, (y + 1) * scale - m - 1), fill=c)

@@ -73,14 +73,24 @@ def error_frame(msg: str):
 async def render_loop(app: App, hub: Hub):
     panel = (app.cfg["panel"]["width"], app.cfg["panel"]["height"])
     last_sent = 0.0
+    was_on = None
     while True:
         now = time.time()
-        b = app.brightness(now)
+        on = app.settings.is_on(now)
+        if on != was_on:
+            if was_on is not None:
+                log.info("operating hours: panel %s", "on" if on else "off")
+            app.apply_settings()  # sources poll rarely while the panel is off
+            was_on = on
+        b = app.brightness(now) if on else 0
         if b != hub.brightness:
             hub.brightness = b
             await hub.send(b"B" + bytes([b]))
         try:
-            img, wait = app.current(now).render(now)
+            if on:
+                img, wait = app.current(now).render(now)
+            else:
+                (img, _), wait = canvas(), 5.0  # off: black frame, brightness 0
         except Exception as e:
             log.error("render failed: %s", traceback.format_exc())
             img, wait = error_frame(type(e).__name__), 5.0

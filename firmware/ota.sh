@@ -3,9 +3,10 @@
 # Usage: firmware/ota.sh   (run from the laptop)
 set -e
 cd "$(dirname "$0")"
+OTA_PASS=$(sed -n 's/^#define OTA_PASS *"\(.*\)"/\1/p' include/secrets.h)
 rsync -a --exclude .pio ./ sensnuc3:ledwall/firmware/
 ssh sensnuc3 'cd ledwall/firmware && ~/pio/bin/pio run -e ledwall | tail -1'
 scp -q -3 sensnuc3:ledwall/firmware/.pio/build/ledwall/firmware.bin pigate:ledwall/firmware.bin
 scp -q -3 sensnuc3:.platformio/packages/framework-arduinoespressif32/tools/espota.py pigate:ledwall/espota.py
-ssh pigate 'cd ledwall && python3 espota.py -i 192.168.0.80 -I 192.168.0.200 -a ledwall -f firmware.bin -r' \
+ssh pigate "cd ledwall && python3 espota.py -i 192.168.0.80 -I 192.168.0.200 -a '$OTA_PASS' -f firmware.bin -r" \
   | tr '\r' '\n' | grep -vE '^Uploading: .* [0-9]?[0-9]% $'

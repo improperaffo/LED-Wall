@@ -9,7 +9,7 @@ import time
 from PIL import Image, ImageDraw
 
 from ..icons import draw_icon
-from ..render import canvas, font, text
+from ..render import canvas, font, text, text_width
 from . import Screen
 from .weather import TMAX, TMIN, temp_color
 
@@ -21,6 +21,7 @@ LABEL = (150, 150, 150)
 DAY = (255, 200, 0)
 DIM = (60, 60, 60)
 DRY = (120, 220, 120)
+CLOCK = (210, 210, 210)
 
 
 def bang(img, x: int, y: int):
@@ -111,6 +112,10 @@ class Timeline(_Outlook):
             prev = p
         text(d, 127, top + 1, f"{max(temps):.0f}°", f4, TMAX, anchor="r")
         text(d, 127, 58, f"{min(temps):.0f}°", f4, TMIN, anchor="r")
+        # small clock, bottom left, on a black patch so rain bars can't swallow it
+        hm = time.strftime("%H:%M", time.localtime(now))
+        d.rectangle((0, 56, text_width(hm, font("5x7")) + 1, 63), fill=(0, 0, 0))
+        text(d, 1, 57, hm, font("5x7"), CLOCK)
 
 
 class NowNext(_Outlook):

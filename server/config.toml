@@ -2,6 +2,10 @@
 host = "0.0.0.0"
 port = 7777
 
+[panel]               # physical LEDs; screens draw at 64x32 and are scaled up
+width = 128
+height = 64
+
 [location]
 plz = 1024            # MeteoSwiss forecast point (Ecublens)
 lat = 46.5265

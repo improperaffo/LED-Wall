@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PIL import BdfFontFile, Image, ImageDraw, ImageFont
 
-W, H = 64, 32
+W, H = 64, 32   # logical canvas the screens draw on; scaled up to the panel in to_rgb565
 FONT_DIR = Path(__file__).resolve().parent.parent / "fonts"
 FONT_CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "ledwall" / "fonts"
 
@@ -64,9 +64,12 @@ def text_fit(img: Image.Image, x: int, y: int, w: int, s: str, f, fill, t: float
     return True
 
 
-def to_rgb565(img: Image.Image) -> bytes:
+def to_rgb565(img: Image.Image, size: tuple[int, int] = (W, H)) -> bytes:
+    """Pack for the panel, scaling the canvas up (nearest) to the panel's size."""
+    if img.size != size:
+        img = img.resize(size, Image.Resampling.NEAREST)
     raw = img.convert("RGB").tobytes()
-    out = bytearray(W * H * 2)
+    out = bytearray(size[0] * size[1] * 2)
     j = 0
     for i in range(0, len(raw), 3):
         v = ((raw[i] & 0xF8) << 8) | ((raw[i + 1] & 0xFC) << 3) | (raw[i + 2] >> 3)

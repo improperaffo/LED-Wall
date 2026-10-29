@@ -1,7 +1,7 @@
 // ledwall: thin client for a 64x32 HUB75 panel.
 // pigate renders every frame and streams it over TCP; this only blits pixels.
 //
-// Server -> ESP32:  'F' + 4096 B (64x32 RGB565 LE)  |  'B' + 1 B brightness  |  'P' ping
+// Server -> ESP32:  'F' + 16384 B (128x64 RGB565 LE)  |  'B' + 1 B brightness  |  'P' ping
 // ESP32 -> server:  'H' + JSON hello + '\n' on connect
 #include <Arduino.h>
 #include <WiFi.h>
@@ -10,8 +10,9 @@
 #include <Fonts/TomThumb.h>
 #include "secrets.h"
 
-#define PANEL_W 64
-#define PANEL_H 32
+// Sold as "P2.5 64x32" but the panel is 128x64, 1/32 scan (needs the E line).
+#define PANEL_W 128
+#define PANEL_H 64
 #define FW_VERSION "0.1"
 
 static MatrixPanel_DMA *panel;
@@ -21,7 +22,7 @@ static inline uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 static void setupPanel(bool doubleBuf) {
-  // Waveshare devkit wiring (wiki "Other Demos" diagram); note B is GPIO22.
+  // Waveshare devkit wiring (wiki 64x64 diagram); note B is GPIO22, E is GPIO32.
   hub75_cfg_t cfg = {
     .mx_width = PANEL_W,
     .mx_height = PANEL_H,
@@ -29,7 +30,7 @@ static void setupPanel(bool doubleBuf) {
     .mx_count_height = 1,
     .gpio = {
       .r1 = 25, .g1 = 26, .b1 = 27, .r2 = 14, .g2 = 12, .b2 = 13,
-      .a = 23, .b = 22, .c = 5, .d = 17, .e = -1,
+      .a = 23, .b = 22, .c = 5, .d = 17, .e = 32,
       .lat = 4, .oe = 15, .clk = 16,
     },
     .driver = FM6353,
@@ -58,12 +59,13 @@ static void drawPattern(int n) {
         rgb(255, 0, 255),   rgb(255, 0, 0),
         rgb(0, 0, 255),     rgb(0, 0, 0)};
       for (int x = 0; x < PANEL_W; x++)
-        for (int y = 0; y < 16; y++) panel->drawPixel(x, y, bars[x / 8]);
+        for (int y = 0; y < PANEL_H / 2; y++) panel->drawPixel(x, y, bars[x * 8 / PANEL_W]);
       for (int x = 0; x < PANEL_W; x++) {
-        uint8_t v = x * 4;
-        for (int y = 16; y < 21; y++) panel->drawPixel(x, y, rgb(v, 0, 0));
-        for (int y = 21; y < 26; y++) panel->drawPixel(x, y, rgb(0, v, 0));
-        for (int y = 26; y < 32; y++) panel->drawPixel(x, y, rgb(0, 0, v));
+        uint8_t v = x * 256 / PANEL_W;
+        const int h = PANEL_H / 6;  // three ramps in the bottom half
+        for (int y = PANEL_H / 2; y < PANEL_H / 2 + h; y++) panel->drawPixel(x, y, rgb(v, 0, 0));
+        for (int y = PANEL_H / 2 + h; y < PANEL_H / 2 + 2 * h; y++) panel->drawPixel(x, y, rgb(0, v, 0));
+        for (int y = PANEL_H / 2 + 2 * h; y < PANEL_H; y++) panel->drawPixel(x, y, rgb(0, 0, v));
       }
       break;
     }
@@ -73,9 +75,9 @@ static void drawPattern(int n) {
       for (int y = 0; y < PANEL_H; y += 8) panel->drawFastHLine(0, y, PANEL_W, dim);
       panel->drawRect(0, 0, PANEL_W, PANEL_H, rgb(120, 120, 120));
       panel->fillRect(0, 0, 3, 3, rgb(255, 0, 0));
-      panel->fillRect(61, 0, 3, 3, rgb(0, 255, 0));
-      panel->fillRect(0, 29, 3, 3, rgb(0, 0, 255));
-      panel->fillRect(61, 29, 3, 3, rgb(255, 255, 255));
+      panel->fillRect(PANEL_W - 3, 0, 3, 3, rgb(0, 255, 0));
+      panel->fillRect(0, PANEL_H - 3, 3, 3, rgb(0, 0, 255));
+      panel->fillRect(PANEL_W - 3, PANEL_H - 3, 3, 3, rgb(255, 255, 255));
       break;
     }
     case 2:
@@ -187,14 +189,19 @@ static void pumpServer() {
 
 void setup() {
   Serial.begin(115200);
-  setupPanel(true);
-  showStatus("WIFI...", WIFI_SSID);
-
+  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
+    Serial.printf("wifi disconnected, reason %d\n", info.wifi_sta_disconnected.reason);
+  }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.mode(WIFI_STA);
   WiFi.setHostname("ledwall");
   WiFi.setSleep(false);  // no modem sleep: steadier frame latency
   WiFi.setAutoReconnect(true);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  // Panel after WiFi: at 128x64 its buffers take ~73 KB of internal RAM, and if they
+  // are allocated first the WiFi driver can't get its DMA-capable RX/TX buffers.
+  setupPanel(true);
+  showStatus("WIFI...", WIFI_SSID);
 
   ArduinoOTA.setHostname("ledwall");
   ArduinoOTA.setPassword(OTA_PASS);
@@ -208,7 +215,11 @@ void loop() {
 
   if (WiFi.status() != WL_CONNECTED) {
     if (client.connected()) client.stop();
-    if (now - lastStatusDraw > 1000) { showStatus("NO WIFI", WIFI_SSID); lastStatusDraw = now; }
+    if (now - lastStatusDraw > 1000) {
+      showStatus("NO WIFI", WIFI_SSID);
+      lastStatusDraw = now;
+      Serial.printf("wifi status %d\n", WiFi.status());
+    }
     delay(50);
     return;
   }

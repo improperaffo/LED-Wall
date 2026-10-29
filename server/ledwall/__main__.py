@@ -1,6 +1,6 @@
 """ledwall server: renders 64x32 frames and streams them to the ESP32 over TCP.
 
-Wire protocol (server -> ESP32): b'F' + 4096 B RGB565 LE | b'B' + 1 B brightness | b'P' ping.
+Wire protocol (server -> ESP32): b'F' + panel W*H*2 B RGB565 LE | b'B' + 1 B brightness | b'P' ping.
 The ESP32 sends b'H' + JSON hello + b'\\n' after connecting.
 """
 import argparse
@@ -69,6 +69,7 @@ def error_frame(msg: str):
 
 
 async def render_loop(app: App, hub: Hub):
+    panel = (app.cfg["panel"]["width"], app.cfg["panel"]["height"])
     last_sent = 0.0
     while True:
         now = time.time()
@@ -81,7 +82,7 @@ async def render_loop(app: App, hub: Hub):
         except Exception as e:
             log.error("render failed: %s", traceback.format_exc())
             img, wait = error_frame(type(e).__name__), 5.0
-        frame = to_rgb565(img)
+        frame = to_rgb565(img, panel)
         if frame != hub.frame:
             hub.frame = frame
             await hub.send(b"F" + frame)

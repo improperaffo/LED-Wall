@@ -9,7 +9,7 @@ import time
 from PIL import Image, ImageDraw
 
 from ..icons import draw_icon
-from ..render import canvas, font, text, text_width
+from ..render import canvas, font, text
 from . import Screen
 from .weather import TMAX, TMIN, temp_color
 
@@ -22,6 +22,7 @@ DAY = (255, 200, 0)
 DIM = (60, 60, 60)
 DRY = (120, 220, 120)
 CLOCK = (210, 210, 210)
+DATE = (0, 170, 255)
 
 
 def bang(img, x: int, y: int):
@@ -71,14 +72,15 @@ class Timeline(_Outlook):
         hours = self.w.hours_from(t0, self.HOURS + 1)
         px = 128 / self.HOURS
         top = 20
+        base = 55  # chart floor; rows 57-63 are the status line (clock, date, min temp)
         x_of = lambda t: (t - t0) / 3600 * px  # noqa: E731
         for i, h in enumerate(hours[:self.HOURS]):
             x0, x1 = round(i * px), round((i + 1) * px) - 1
             if h["mm"] > 0.05:  # 4 mm/h fills the chart
-                bar = max(1, round(min(h["mm"], 4) / 4 * (63 - top)))
-                d.rectangle((x0 + 1, 63 - bar + 1, x1 - 1, 63), fill=RAIN)
+                bar = max(1, round(min(h["mm"], 4) / 4 * (base - top)))
+                d.rectangle((x0 + 1, base - bar + 1, x1 - 1, base), fill=RAIN)
             if time.localtime(h["t"]).tm_hour == 0 and i:
-                for y in range(top, 64, 2):
+                for y in range(top, base + 1, 2):
                     img.putpixel((x0, y), DIM)
         for s in self.w.slots(self.HOURS // 3 + 2, now):
             a, b = max(x_of(s["t"]), 0), min(x_of(s["t"] + 10800), 128)
@@ -97,7 +99,7 @@ class Timeline(_Outlook):
         lo, hi = min(temps), max(temps)
         if hi - lo < 4:
             lo, hi = (hi + lo) / 2 - 2, (hi + lo) / 2 + 2
-        y0, ch = top + 8, 56 - top - 8  # between the max (top) and min (bottom) labels
+        y0, ch = top + 8, base - top - 8  # below the max label
         prev = None
         for x in range(128):  # hourly means sit mid-hour; interpolate between them
             f = x / px - 0.5
@@ -110,12 +112,13 @@ class Timeline(_Outlook):
             if prev:
                 d.line((prev, p), fill=temp_color(v))
             prev = p
-        text(d, 127, top + 1, f"{max(temps):.0f}°", f4, TMAX, anchor="r")
-        text(d, 127, 58, f"{min(temps):.0f}°", f4, TMIN, anchor="r")
-        # small clock, bottom left, on a black patch so rain bars can't swallow it
-        hm = time.strftime("%H:%M", time.localtime(now))
-        d.rectangle((0, 56, text_width(hm, font("5x7")) + 1, 63), fill=(0, 0, 0))
-        text(d, 1, 57, hm, font("5x7"), CLOCK)
+        # max temperature top right of the chart; status line: clock and date left, min right
+        f5 = font("5x7")
+        text(d, 127, top + 1, f"{max(temps):.0f}°", f5, TMAX, anchor="r")
+        lt = time.localtime(now)
+        x = 1 + text(d, 1, 57, time.strftime("%H:%M", lt), f5, CLOCK)
+        text(d, x + 5, 57, time.strftime("%a %d %b", lt), f5, DATE)
+        text(d, 127, 57, f"{min(temps):.0f}°", f5, TMIN, anchor="r")
 
 
 class NowNext(_Outlook):

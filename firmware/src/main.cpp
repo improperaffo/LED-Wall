@@ -34,7 +34,9 @@ static void setupPanel(bool doubleBuf) {
       .lat = 4, .oe = 15, .clk = 16,
     },
     .driver = FM6353,
-    .clk_freq = HZ_5M,  // fork notes timing hacks above 5 MHz; 5 MHz still refreshes ~1 kHz
+    // The ISR needs ~690 us to build a 128 px row; at 5 MHz the DMA cycle (~1.5 ms) left too
+    // little slack and the left (far) end of the panel showed garbage. 2.5 MHz doubles it.
+    .clk_freq = (clk_freq_t)2500000,
     .clk_phase = CLK_POZITIVE,
     .color_depth = COLORx16,
     .double_buff = doubleBuf,

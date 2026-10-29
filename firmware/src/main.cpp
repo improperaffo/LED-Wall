@@ -6,7 +6,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h>
-#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+#include <ESP32-HUB75-MatrixPanel-DMA.h>
 #include <Fonts/TomThumb.h>
 #include "secrets.h"
 
@@ -14,15 +14,34 @@
 #define PANEL_H 32
 #define FW_VERSION "0.1"
 
-static MatrixPanel_I2S_DMA *panel;
+static MatrixPanel_DMA *panel;
+
+static inline uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) {
+  return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+}
 
 static void setupPanel(bool doubleBuf) {
-  // Default pin map == Waveshare ESP32 wiring:
-  // R1 25 G1 26 B1 27 R2 14 G2 12 B2 13 A 23 B 19 C 5 D 17 LAT 4 OE 15 CLK 16
-  HUB75_I2S_CFG cfg(PANEL_W, PANEL_H, 1);
-  cfg.double_buff = doubleBuf;
-  panel = new MatrixPanel_I2S_DMA(cfg);
-  panel->begin();
+  // Waveshare devkit wiring (wiki "Other Demos" diagram); note B is GPIO22.
+  hub75_cfg_t cfg = {
+    .mx_width = PANEL_W,
+    .mx_height = PANEL_H,
+    .mx_count_width = 1,
+    .mx_count_height = 1,
+    .gpio = {
+      .r1 = 25, .g1 = 26, .b1 = 27, .r2 = 14, .g2 = 12, .b2 = 13,
+      .a = 23, .b = 22, .c = 5, .d = 17, .e = -1,
+      .lat = 4, .oe = 15, .clk = 16,
+    },
+    .driver = FM6353,
+    .clk_freq = HZ_10M,  // jumper wires: stay below the fork's 13 MHz default
+    .clk_phase = CLK_POZITIVE,
+    .color_depth = COLORx16,
+    .double_buff = doubleBuf,
+    .double_dma_buff = false,
+    .decoder_INT595 = false,
+  };
+  panel = new MatrixPanel_DMA(cfg);
+  if (!panel->begin()) Serial.println("panel: DMA memory allocation failed");
   panel->setBrightness8(40);
   panel->clearScreen();
 }
@@ -34,47 +53,48 @@ static void drawPattern(int n) {
   switch (n) {
     case 0: {  // colour bars + RGB ramps
       const uint16_t bars[8] = {
-        panel->color565(255, 255, 255), panel->color565(255, 255, 0),
-        panel->color565(0, 255, 255),   panel->color565(0, 255, 0),
-        panel->color565(255, 0, 255),   panel->color565(255, 0, 0),
-        panel->color565(0, 0, 255),     panel->color565(0, 0, 0)};
+        rgb(255, 255, 255), rgb(255, 255, 0),
+        rgb(0, 255, 255),   rgb(0, 255, 0),
+        rgb(255, 0, 255),   rgb(255, 0, 0),
+        rgb(0, 0, 255),     rgb(0, 0, 0)};
       for (int x = 0; x < PANEL_W; x++)
         for (int y = 0; y < 16; y++) panel->drawPixel(x, y, bars[x / 8]);
       for (int x = 0; x < PANEL_W; x++) {
         uint8_t v = x * 4;
-        for (int y = 16; y < 21; y++) panel->drawPixel(x, y, panel->color565(v, 0, 0));
-        for (int y = 21; y < 26; y++) panel->drawPixel(x, y, panel->color565(0, v, 0));
-        for (int y = 26; y < 32; y++) panel->drawPixel(x, y, panel->color565(0, 0, v));
+        for (int y = 16; y < 21; y++) panel->drawPixel(x, y, rgb(v, 0, 0));
+        for (int y = 21; y < 26; y++) panel->drawPixel(x, y, rgb(0, v, 0));
+        for (int y = 26; y < 32; y++) panel->drawPixel(x, y, rgb(0, 0, v));
       }
       break;
     }
     case 1: {  // 8 px grid + coloured corners: R top-left, G top-right, B bottom-left, W bottom-right
-      uint16_t dim = panel->color565(60, 60, 60);
+      uint16_t dim = rgb(60, 60, 60);
       for (int x = 0; x < PANEL_W; x += 8) panel->drawFastVLine(x, 0, PANEL_H, dim);
       for (int y = 0; y < PANEL_H; y += 8) panel->drawFastHLine(0, y, PANEL_W, dim);
-      panel->drawRect(0, 0, PANEL_W, PANEL_H, panel->color565(120, 120, 120));
-      panel->fillRect(0, 0, 3, 3, panel->color565(255, 0, 0));
-      panel->fillRect(61, 0, 3, 3, panel->color565(0, 255, 0));
-      panel->fillRect(0, 29, 3, 3, panel->color565(0, 0, 255));
-      panel->fillRect(61, 29, 3, 3, panel->color565(255, 255, 255));
+      panel->drawRect(0, 0, PANEL_W, PANEL_H, rgb(120, 120, 120));
+      panel->fillRect(0, 0, 3, 3, rgb(255, 0, 0));
+      panel->fillRect(61, 0, 3, 3, rgb(0, 255, 0));
+      panel->fillRect(0, 29, 3, 3, rgb(0, 0, 255));
+      panel->fillRect(61, 29, 3, 3, rgb(255, 255, 255));
       break;
     }
     case 2:
       panel->setFont(&TomThumb);
-      panel->setTextColor(panel->color565(255, 160, 0));
+      panel->setTextColor(rgb(255, 160, 0));
       panel->setCursor(2, 8);
       panel->print("LEDWALL TEST");
-      panel->setTextColor(panel->color565(0, 200, 255));
+      panel->setTextColor(rgb(0, 200, 255));
       panel->setCursor(2, 18);
       panel->print("64x32 HUB75");
-      panel->setTextColor(panel->color565(0, 255, 0));
+      panel->setTextColor(rgb(0, 255, 0));
       panel->setCursor(2, 28);
       panel->print("ROW 28 OK");
       break;
     case 3:  // full white: power-supply check
-      panel->fillScreen(panel->color565(255, 255, 255));
+      panel->fillScreen(rgb(255, 255, 255));
       break;
   }
+  panel->flipDMABuffer();  // FM6353 holds the frame on-chip: nothing shows until it's sent
 }
 
 void setup() {
@@ -117,13 +137,13 @@ static void showFrame() {
 static void showStatus(const char *line1, const char *line2) {
   panel->clearScreen();
   panel->setFont(&TomThumb);
-  panel->setTextColor(panel->color565(255, 120, 0));
+  panel->setTextColor(rgb(255, 120, 0));
   panel->setCursor(1, 7);
   panel->print("LEDWALL " FW_VERSION);
-  panel->setTextColor(panel->color565(200, 0, 0));
+  panel->setTextColor(rgb(200, 0, 0));
   panel->setCursor(1, 16);
   panel->print(line1);
-  panel->setTextColor(panel->color565(0, 150, 255));
+  panel->setTextColor(rgb(0, 150, 255));
   panel->setCursor(1, 25);
   panel->print(line2);
   panel->flipDMABuffer();

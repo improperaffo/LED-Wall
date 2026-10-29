@@ -20,7 +20,29 @@ MeteoSwiss / adsb.lol ──HTTPS──> server (Python + Pillow, renders the fr
 | `forecast` | Three days: weekday, icon, min/max, rain | MeteoSwiss |
 | `flights` | Nearest airborne aircraft: airline (in its colour), route `GVA→SUF`, callsign, type, altitude, distance, track arrow | [adsb.lol](https://adsb.lol) + VRS route data |
 
-The screens rotate on a schedule. A screen without data is skipped. A new aircraft that comes close and low interrupts the rotation.
+A screen without data is skipped. A new aircraft that comes close and low can interrupt the rotation.
+
+## Control page
+
+The server serves a control page on port 8080, e.g. `http://pigate.local:8080`. It has no login, so keep it on the LAN or a tailnet. On the page you can:
+- switch between **Rotate** (cycle through the ticked widgets in order, each for its own number of seconds) and **Single widget** (one widget stays up);
+- reorder the widgets, use **Show now**, and watch a live preview of the panel;
+- set how often each data source is re-fetched (weather at least every 60 s, flights at least every 5 s). A source no visible widget uses drops to polling every 5 min;
+- turn flight alerts on or off.
+
+Changes apply immediately and auto-save to `~/.local/state/ledwall/settings.json`. That file is outside the code tree, so deploys don't touch it.
+
+In single mode the widget's data is re-fetched at its refresh interval, and the panel redraws when the data changes. If the chosen widget has no data yet (for example, no aircraft overhead), the clock is shown instead.
+
+The page is backed by a small JSON API:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/settings` | Settings and widget/source metadata |
+| `PUT` | `/api/settings` | Update settings (partial updates allowed); returns 400 with an error message if invalid |
+| `POST` | `/api/show` | `{"name": "weather"}`: jump to that widget now |
+| `GET` | `/api/status` | Widget on the panel, connected panels, data age |
+| `GET` | `/api/frame.png` | The current frame, rendered with an LED look |
 
 ## Hardware
 
@@ -71,15 +93,15 @@ python3 preview.py flights --fake-flight
 `server/ledwall.service` is the systemd unit used in production. It sets `TZ=Europe/Zurich`, because the server host runs on UTC.
 
 `server/config.toml` sets:
-- the panel size;
+- the panel size and the ports (panel 7777, control page 8080);
 - the location (postcode for MeteoSwiss, lat/lon for flights);
 - the brightness schedule (day/night, 0–255);
-- the screen rotation and dwell times;
-- the flight radius and alert rules.
+- the flight radius and alert rules;
+- the first-run defaults for the rotation. After the first run, the control page's settings apply.
 
 ### Adding a screen
 
-Subclass `Screen` in `server/ledwall/screens/`. Implement `render(now)`, which returns `(image, seconds_until_next_frame)`, and optionally `ready()`. Register the screen in `ledwall/app.py` and add it to `[rotation]` in the config.
+Subclass `Screen` in `server/ledwall/screens/`. Implement `render(now)`, which returns `(image, seconds_until_next_frame)`, and optionally `ready()`. Register the screen in `ledwall/app.py`, and add it to `WIDGETS` in `ledwall/settings.py` with its label and data source. It then appears on the control page.
 
 Screens draw on a 64×32 canvas. The server scales it 2× (nearest neighbour) to the 128×64 panel before sending. Fonts are public-domain X11 BDF fonts in `server/fonts/`, converted to PIL format on first use.
 

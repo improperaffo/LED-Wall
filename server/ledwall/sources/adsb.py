@@ -1,10 +1,9 @@
 """Aircraft near a point from adsb.lol, with routes from its VRS standing data."""
-import asyncio
 import logging
 import time
 import urllib.error
 
-from . import fetch_json
+from . import Poller, fetch_json
 
 log = logging.getLogger(__name__)
 NM = 1.852
@@ -12,10 +11,12 @@ POINT_URL = "https://api.adsb.lol/v2/point/{lat}/{lon}/{nm}"
 ROUTE_URL = "https://vrs-standing-data.adsb.lol/routes/{p}/{cs}.json"
 
 
-class Adsb:
+class Adsb(Poller):
+    name = "flights"
+
     def __init__(self, lat: float, lon: float, radius_km: float, interval: float = 15):
+        super().__init__(interval)
         self.lat, self.lon, self.radius_km = lat, lon, radius_km
-        self.interval = interval
         self.aircraft: list[dict] = []   # nearest first, airborne only
         self.updated = 0.0
         self._routes: dict[str, tuple[float, dict | None]] = {}
@@ -56,18 +57,11 @@ class Adsb:
                     log.debug("route %s: %s", a["callsign"], e)
         self.aircraft = out
         self.updated = time.time()
-
-    async def run(self):
-        while True:
-            try:
-                await asyncio.to_thread(self.refresh)
-                log.debug("%d aircraft within %.0f km", len(self.aircraft), self.radius_km)
-            except Exception as e:
-                log.warning("adsb fetch failed: %s", e)
-            await asyncio.sleep(self.interval)
+        log.debug("%d aircraft within %.0f km", len(self.aircraft), self.radius_km)
 
     @property
     def nearest(self) -> dict | None:
-        if self.aircraft and time.time() - self.updated < 120:
+        # stale after a few missed polls (but never sooner than 2 min)
+        if self.aircraft and time.time() - self.updated < max(120, 3 * self.interval):
             return self.aircraft[0]
         return None

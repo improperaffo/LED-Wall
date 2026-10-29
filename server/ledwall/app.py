@@ -3,6 +3,7 @@ import time
 import tomllib
 from pathlib import Path
 
+from .settings import Settings
 from .screens.clock import Clock
 from .screens.flights import Flights
 from .screens.weather import Forecast, Weather
@@ -17,8 +18,11 @@ def load_config(path: Path | None = None) -> dict:
         return tomllib.load(f)
 
 
+IDLE_POLL_S = 300  # flights nobody is looking at: poll rarely
+
+
 class App:
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg: dict, settings: Settings | None = None):
         self.cfg = cfg
         loc, fl = cfg["location"], cfg["flights"]
         self.weather = MeteoSwiss(loc["plz"])
@@ -26,26 +30,49 @@ class App:
         self.flights = Flights(self.adsb, fl["alert_km"], fl["alert_max_alt_ft"])
         self.screens = {s.name: s for s in (
             Clock(self.weather), Weather(self.weather), Forecast(self.weather), self.flights)}
-        self.rotation = [(name, float(sec)) for name, sec in cfg["rotation"]["screens"]]
-        self._idx = 0
+        self.settings = settings or Settings(cfg)
+        self._current = None   # name of the widget on screen
         self._since = 0.0
+        self.apply_settings()
+
+    def apply_settings(self):
+        """Push poll intervals to the data sources after a settings change."""
+        s = self.settings.data
+        self.weather.set_interval(s["refresh"]["weather"])
+        flights_shown = "flights" in self.settings.active()
+        self.adsb.set_interval(s["refresh"]["flights"] if flights_shown else IDLE_POLL_S)
+
+    def show_now(self, name: str):
+        self._current, self._since = name, time.time()
 
     def current(self, now: float):
-        """Screen to show now: rotate by dwell time, skip screens without data, let flights interrupt."""
-        if self.flights.pending_alert():
-            names = [n for n, _ in self.rotation]
-            if "flights" in names:
-                self._idx, self._since = names.index("flights"), now
-        name, dwell = self.rotation[self._idx]
-        if now - self._since >= dwell or not self.screens[name].ready():
-            for step in range(1, len(self.rotation) + 1):
-                i = (self._idx + step) % len(self.rotation)
-                if self.screens[self.rotation[i][0]].ready():
-                    self._idx, self._since = i, now
-                    break
-            else:
-                return self.screens["clock"]
-        return self.screens[self.rotation[self._idx][0]]
+        """Widget to show now: single mode, or rotate by dwell time, skipping widgets without
+        data; a new close aircraft interrupts the rotation if flight alerts are on."""
+        s = self.settings.data
+        if s["mode"] == "single":
+            scr = self.screens[s["single"]]
+            self._current = scr.name if scr.ready() else "clock"
+            return self.screens[self._current]
+
+        rotation = [(w["name"], w["seconds"]) for w in s["widgets"] if w["enabled"]]
+        names = [n for n, _ in rotation]
+        if self.flights.pending_alert() and s["flight_alerts"] and "flights" in names:
+            self._current, self._since = "flights", now
+        if self._current in names:
+            i = names.index(self._current)
+            if now - self._since < rotation[i][1] and self.screens[self._current].ready():
+                return self.screens[self._current]
+        else:
+            i = -1  # current widget was disabled: start from the top
+        for step in range(1, len(names) + 1):
+            name = names[(i + step) % len(names)]
+            if self.screens[name].ready():
+                if name != self._current:
+                    self._since = now
+                self._current = name
+                return self.screens[name]
+        self._current = "clock"  # nothing has data yet
+        return self.screens["clock"]
 
     def brightness(self, now: float | None = None) -> int:
         b = self.cfg["brightness"]

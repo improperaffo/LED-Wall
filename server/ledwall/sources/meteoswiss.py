@@ -1,35 +1,26 @@
 """MeteoSwiss app API (the one behind the MeteoSwiss phone app), per postcode."""
-import asyncio
 import logging
 import time
 
-from . import fetch_json
+from . import Poller, fetch_json
 
 log = logging.getLogger(__name__)
 URL = "https://app-prod-ws.meteoswiss-app.ch/v1/plzDetail?plz={plz}00"
 
 
-class MeteoSwiss:
+class MeteoSwiss(Poller):
+    name = "weather"
+
     def __init__(self, plz: int, interval: float = 600):
+        super().__init__(interval)
         self.url = URL.format(plz=plz)
-        self.interval = interval
         self.data: dict | None = None
         self.updated = 0.0
 
     def refresh(self):
         self.data = fetch_json(self.url)
         self.updated = time.time()
-
-    async def run(self):
-        while True:
-            try:
-                await asyncio.to_thread(self.refresh)
-                log.info("weather updated: %s°C", self.current_temp)
-                delay = self.interval
-            except Exception as e:
-                log.warning("weather fetch failed: %s", e)
-                delay = 60
-            await asyncio.sleep(delay)
+        log.info("weather updated: %s°C", self.current_temp)
 
     @property
     def ok(self) -> bool:

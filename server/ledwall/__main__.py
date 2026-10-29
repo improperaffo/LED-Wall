@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .app import App, load_config
 from .render import canvas, font, text, to_rgb565
+from .web import Web
 
 log = logging.getLogger("ledwall")
 PING_S = 2.0
@@ -23,6 +24,7 @@ class Hub:
     def __init__(self):
         self.clients: set[asyncio.StreamWriter] = set()
         self.frame: bytes | None = None
+        self.image = None          # last rendered canvas, for the web preview
         self.brightness = 0
 
     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -82,6 +84,7 @@ async def render_loop(app: App, hub: Hub):
         except Exception as e:
             log.error("render failed: %s", traceback.format_exc())
             img, wait = error_frame(type(e).__name__), 5.0
+        hub.image = img
         frame = to_rgb565(img, panel)
         if frame != hub.frame:
             hub.frame = frame
@@ -103,8 +106,10 @@ async def main():
     cfg = load_config(args.config)
     app, hub = App(cfg), Hub()
     server = await asyncio.start_server(hub.handle, cfg["server"]["host"], cfg["server"]["port"])
-    log.info("listening on %s", ", ".join(str(s.getsockname()) for s in server.sockets))
-    async with server:
+    log.info("panel server on %s", ", ".join(str(s.getsockname()) for s in server.sockets))
+    web = await asyncio.start_server(Web(app, hub).handle, cfg["server"]["host"], cfg["server"].get("web_port", 8080))
+    log.info("control page on %s", ", ".join(str(s.getsockname()) for s in web.sockets))
+    async with server, web:
         await asyncio.gather(app.weather.run(), app.adsb.run(), render_loop(app, hub))
 
 

@@ -1,6 +1,8 @@
 [server]
 host = "0.0.0.0"
 port = 7777
+web_port = 8080       # control page: http://<host>:8080
+
 
 [panel]               # physical LEDs; screens draw at 64x32 and are scaled up
 width = 128
@@ -17,7 +19,7 @@ night = 90
 night_start = "22:00"
 night_end = "07:00"
 
-[rotation]            # [screen, seconds]; screens without data are skipped
+[rotation]            # first-run defaults only; afterwards the control page's settings apply
 screens = [["clock", 10], ["weather", 15], ["forecast", 10], ["flights", 15]]
 
 [flights]

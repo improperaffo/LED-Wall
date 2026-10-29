@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LED Wall</title>
+<style>
+  :root {
+    --bg: #f5f5f4; --card: #ffffff; --text: #1c1917; --muted: #78716c; --line: #e7e5e4;
+    --accent: #ea580c; --accent-text: #ffffff; --ok: #16a34a; --err: #dc2626; --input: #fafaf9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09; --card: #1c1917; --text: #f5f5f4; --muted: #a8a29e; --line: #292524;
+      --accent: #f97316; --accent-text: #0c0a09; --ok: #4ade80; --err: #f87171; --input: #0c0a09;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 4px 0 2px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+       margin: 0 0 10px; font-weight: 600; }
+  .status { color: var(--muted); font-size: 13px; min-height: 1.4em; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+          padding: 14px; margin-top: 14px; }
+  .preview { width: 100%; aspect-ratio: 2 / 1; display: block; border-radius: 6px; background: #080808;
+             image-rendering: pixelated; object-fit: contain; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--bg);
+         border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+  .seg button { border: 0; background: transparent; color: var(--text); padding: 8px; border-radius: 8px;
+                font: inherit; font-weight: 600; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .row { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 8px;
+         padding: 10px 0; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; padding-top: 0; }
+  .row.off .name { color: var(--muted); }
+  .row.live .name::after { content: " ● on panel"; color: var(--ok); font-size: 12px; }
+  .name { font-weight: 600; min-width: 0; }
+  .secs { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 13px; }
+  input[type=number], select { font: inherit; color: var(--text); background: var(--input);
+         border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  input[type=number] { width: 76px; text-align: right; }
+  select { width: 100%; }
+  input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; }
+  .btns { display: flex; gap: 4px; }
+  .btns button, .show { border: 1px solid var(--line); background: var(--input); color: var(--text);
+         border-radius: 8px; min-width: 34px; height: 34px; font: inherit; cursor: pointer; padding: 0 8px; }
+  .btns button:disabled { opacity: .35; cursor: default; }
+  .show { grid-column: 2 / -1; justify-self: start; height: 28px; font-size: 13px; }
+  .src { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center;
+         padding: 8px 0; border-top: 1px solid var(--line); }
+  .src:first-of-type { border-top: 0; padding-top: 0; }
+  .src.focus .name { color: var(--accent); }
+  .src .meta { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+  label.toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .save { font-size: 13px; min-height: 1.4em; margin-top: 10px; }
+  .save.ok { color: var(--ok); } .save.err { color: var(--err); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LED Wall</h1>
+  <div class="status" id="status">Connecting…</div>
+
+  <div class="card">
+    <img class="preview" id="preview" alt="" aria-label="Current panel image">
+  </div>
+
+  <div class="card">
+    <h2>Mode</h2>
+    <div class="seg" role="group" aria-label="Mode">
+      <button type="button" data-mode="rotate">Rotate</button>
+      <button type="button" data-mode="single">Single widget</button>
+    </div>
+    <p class="hint" id="modeHint"></p>
+  </div>
+
+  <div class="card" id="rotateCard">
+    <h2>Widgets</h2>
+    <div id="widgets"></div>
+    <p class="hint">Tick to include, set seconds on screen, reorder with the arrows. Widgets without data yet are skipped.</p>
+  </div>
+
+  <div class="card" id="singleCard" hidden>
+    <h2>Widget</h2>
+    <select id="single" aria-label="Widget to show"></select>
+    <p class="hint">Stays on screen; its data is re-fetched at the refresh interval below and the panel redraws when it changes.</p>
+  </div>
+
+  <div class="card">
+    <h2>Data refresh</h2>
+    <div id="sources"></div>
+  </div>
+
+  <div class="card" id="alertsCard">
+    <label class="toggle"><input type="checkbox" id="alerts"> <span><b>Flight alerts</b><br>
+      <span class="hint" style="margin:0">A new aircraft close and low jumps to the flights widget (rotate mode, flights enabled).</span></span></label>
+  </div>
+
+  <div class="save" id="save" role="status"></div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let S = null, META = null, live = null, saveTimer = null;
+
+function fmt(s) {
+  if (s < 60) return s + " s";
+  if (s < 3600) return (s % 60 ? (s / 60).toFixed(1) : s / 60) + " min";
+  return (s / 3600).toFixed(s % 3600 ? 1 : 0) + " h";
+}
+const label = (n) => META.widgets.find((w) => w.name === n).label;
+const sourceOf = (n) => META.widgets.find((w) => w.name === n).source;
+
+function render() {
+  document.querySelectorAll("[data-mode]").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode)));
+  $("rotateCard").hidden = S.mode !== "rotate";
+  $("singleCard").hidden = S.mode !== "single";
+  $("alertsCard").hidden = S.mode !== "rotate";
+  const on = S.widgets.filter((w) => w.enabled);
+  $("modeHint").textContent = S.mode === "rotate"
+    ? `${on.length} widget${on.length === 1 ? "" : "s"}, one cycle ≈ ${fmt(on.reduce((a, w) => a + w.seconds, 0))}`
+    : `Showing only: ${label(S.single)}`;
+
+  const box = $("widgets");
+  box.replaceChildren(...S.widgets.map((w, i) => {
+    const row = document.createElement("div");
+    row.className = "row" + (w.enabled ? "" : " off") + (w.name === live ? " live" : "");
+    row.dataset.name = w.name;
+    row.innerHTML = `
+      <input type="checkbox" aria-label="Show ${label(w.name)}" ${w.enabled ? "checked" : ""}>
+      <span class="name">${label(w.name)}</span>
+      <span class="secs"><input type="number" min="${META.seconds.min}" max="${META.seconds.max}"
+        value="${w.seconds}" aria-label="Seconds for ${label(w.name)}"> s</span>
+      <span class="btns"><button type="button" aria-label="Move up" ${i ? "" : "disabled"}>▲</button>
+        <button type="button" aria-label="Move down" ${i < S.widgets.length - 1 ? "" : "disabled"}>▼</button></span>
+      ${w.enabled ? '<button type="button" class="show">Show now</button>' : ""}`;
+    const [chk, secs] = row.querySelectorAll("input");
+    const [up, down] = row.querySelectorAll(".btns button");
+    chk.onchange = () => { w.enabled = chk.checked; changed(); };
+    secs.onchange = () => { w.seconds = Number(secs.value); changed(); };
+    up.onclick = () => { S.widgets.splice(i - 1, 0, S.widgets.splice(i, 1)[0]); changed(); };
+    down.onclick = () => { S.widgets.splice(i + 1, 0, S.widgets.splice(i, 1)[0]); changed(); };
+    const show = row.querySelector(".show");
+    if (show) show.onclick = () => api("POST", "/api/show", { name: w.name }).then(poll);
+    return row;
+  }));
+
+  const sel = $("single");
+  if (!sel.options.length)
+    META.widgets.forEach((w) => sel.add(new Option(w.label, w.name)));
+  sel.value = S.single;
+
+  const focus = S.mode === "single" ? sourceOf(S.single) : null;
+  $("sources").replaceChildren(...META.sources.map((src) => {
+    const row = document.createElement("div");
+    row.className = "src" + (src.name === focus ? " focus" : "");
+    const v = S.refresh[src.name];
+    row.innerHTML = `
+      <span class="name">${src.label}</span>
+      <span class="secs">every <input type="number" min="${src.min}" max="${src.max}" value="${v}"
+        aria-label="${src.label} refresh seconds"> s</span>
+      <span class="meta" data-src="${src.name}">= ${fmt(v)} · min ${fmt(src.min)}</span>`;
+    const inp = row.querySelector("input");
+    inp.onchange = () => { S.refresh[src.name] = Number(inp.value); changed(); };
+    return row;
+  }));
+  $("alerts").checked = S.flight_alerts;
+}
+
+function changed() {
+  render();
+  clearTimeout(saveTimer);
+  setSave("Saving…", "");
+  saveTimer = setTimeout(save, 400);
+}
+
+async function save() {
+  try {
+    const r = await api("PUT", "/api/settings", S);
+    S = r.settings; render(); setSave("Saved", "ok");
+  } catch (e) { setSave(e.message, "err"); }
+}
+
+function setSave(msg, cls) { const el = $("save"); el.textContent = msg; el.className = "save " + cls; }
+
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: { "Content-Type": "application/json" },
+                                body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 204) return null;
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+async function poll() {
+  try {
+    const st = await api("GET", "/api/status");
+    const ages = Object.entries(st.data_age_s).filter(([, a]) => a !== null)
+      .map(([k, a]) => `${k} ${fmt(a)} ago`).join(", ");
+    $("status").textContent = `On panel: ${st.showing ? label(st.showing) : "–"} · ` +
+      (st.panels ? "panel connected" : "panel offline") + (ages ? ` · data: ${ages}` : "");
+    live = st.showing;  // move the marker only: a re-render would steal focus from inputs
+    document.querySelectorAll(".row").forEach((r) => r.classList.toggle("live", r.dataset.name === live));
+    $("preview").src = "/api/frame.png?t=" + Date.now();
+  } catch { $("status").textContent = "Server unreachable"; }
+}
+
+document.querySelectorAll("[data-mode]").forEach((b) =>
+  b.onclick = () => { S.mode = b.dataset.mode; changed(); });
+$("single").onchange = (e) => { S.single = e.target.value; changed(); };
+$("alerts").onchange = (e) => { S.flight_alerts = e.target.checked; changed(); };
+
+// The server embeds the settings in the page; fall back to fetching them.
+const INITIAL = /*INITIAL*/null;
+(INITIAL ? Promise.resolve(INITIAL) : api("GET", "/api/settings"))
+  .then((r) => { S = r.settings; META = r.meta; render(); poll(); })
+  .catch(() => { $("status").textContent = "Server unreachable"; });
+setInterval(() => { if (!document.hidden && META) poll(); }, 2000);
+</script>
+</body>
+</html>

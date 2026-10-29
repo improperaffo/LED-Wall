@@ -205,13 +205,25 @@ void setup() {
 
   ArduinoOTA.setHostname("ledwall");
   ArduinoOTA.setPassword(OTA_PASS);
-  ArduinoOTA.onStart([] { showStatus("OTA...", "UPDATING"); });
+  ArduinoOTA.setTimeout(10000);  // default 1 s aborts on short WiFi stalls
+  ArduinoOTA.onStart([] {
+    // Stop the frame stream: unread 16 KB frames fill lwIP's buffers and starve the OTA socket.
+    client.stop();
+    showStatus("OTA...", "UPDATING");
+  });
   Serial.println("ledwall " FW_VERSION);
 }
 
 void loop() {
   static bool otaUp = false;
   uint32_t now = millis();
+  static uint32_t lastHeap = 0;
+  if (now - lastHeap > 60000) {
+    lastHeap = now;
+    Serial.printf("heap: free %u, internal free %u, dma largest %u, min ever %u, rssi %d\n",
+                  ESP.getFreeHeap(), heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                  heap_caps_get_largest_free_block(MALLOC_CAP_DMA), ESP.getMinFreeHeap(), WiFi.RSSI());
+  }
 
   if (WiFi.status() != WL_CONNECTED) {
     if (client.connected()) client.stop();

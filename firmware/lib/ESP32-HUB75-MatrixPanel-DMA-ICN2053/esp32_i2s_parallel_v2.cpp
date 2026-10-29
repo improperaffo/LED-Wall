@@ -308,10 +308,11 @@ esp_err_t i2s_parallel_driver_install(i2s_port_t port, i2s_parallel_config_t* co
 
   // Get ISR setup 
   esp_err_t err =  esp_intr_alloc(irq_source, 
-                                 // ledwall patch: no ESP_INTR_FLAG_IRAM. The ISR calls flash-resident
-                                 // code (getRGBColor16), which panics whenever WiFi/NVS/OTA disables
-                                 // the flash cache; without the flag the ISR is just held off meanwhile.
-                                 (int)(ESP_INTR_FLAG_LEVEL1),
+                                 // ledwall patch: the ISR path (getRGBColor16, color565to888, register
+                                 // helpers, ICN2053_REG_CMD) is moved to IRAM/DRAM so the ISR never waits
+                                 // on flash: flash-cache misses under WiFi load made it miss the panel's
+                                 // timing and scrambled rows.
+                                 (int)(ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_LEVEL1),
                                  irq_hndlr, 
                                  &state->i2s_interrupt_port_arg, NULL);
   

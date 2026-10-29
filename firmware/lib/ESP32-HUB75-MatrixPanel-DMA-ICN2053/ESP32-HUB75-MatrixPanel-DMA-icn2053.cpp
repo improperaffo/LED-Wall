@@ -65,7 +65,8 @@ void MatrixPanel_DMA::buffersFree()
 
 //получение цвета пиксела в фрейм-буфере
 #ifdef USE_COLORx16
-inline void MatrixPanel_DMA::getRGBColor16(int offset_y, int offset_x, rgb888_t& rgb888)
+// ledwall patch: called from the DMA ISR, must live in IRAM
+IRAM_ATTR void MatrixPanel_DMA::getRGBColor16(int offset_y, int offset_x, rgb888_t& rgb888)
 {
   uint16_t* addr = (uint16_t*)&frame_buffer.frameBits[back_buffer_id^m_cfg.double_buff][offset_y];
   color565to888(addr[offset_x], rgb888.r,rgb888.g, rgb888.b);

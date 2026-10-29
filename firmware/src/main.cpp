@@ -33,7 +33,7 @@ static void setupPanel(bool doubleBuf) {
       .lat = 4, .oe = 15, .clk = 16,
     },
     .driver = FM6353,
-    .clk_freq = HZ_10M,  // jumper wires: stay below the fork's 13 MHz default
+    .clk_freq = HZ_5M,  // fork notes timing hacks above 5 MHz; 5 MHz still refreshes ~1 kHz
     .clk_phase = CLK_POZITIVE,
     .color_depth = COLORx16,
     .double_buff = doubleBuf,
@@ -42,7 +42,7 @@ static void setupPanel(bool doubleBuf) {
   };
   panel = new MatrixPanel_DMA(cfg);
   if (!panel->begin()) Serial.println("panel: DMA memory allocation failed");
-  panel->setBrightness8(40);
+  panel->setBrightness8(255);
   panel->clearScreen();
 }
 

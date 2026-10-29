@@ -250,7 +250,8 @@ void MatrixPanel_DMA::setPanelBrightness(int b)
     uint32_t g;    
     for(int i = BRIGHT_TABLE_SIZE-1; i >= 0; i--)
     {
-      brightness_table[i] = (lumConvTab[b]|(lumConvTab[b]<<8))*i/(BRIGHT_TABLE_SIZE-1);
+      // ledwall patch: CIE lightness per channel (stock: linear), scaled by global brightness
+      brightness_table[i] = (uint32_t)(lumConvTab[b]|(lumConvTab[b]<<8))*lumConvTab[i]/255;
     }
   }else
   {

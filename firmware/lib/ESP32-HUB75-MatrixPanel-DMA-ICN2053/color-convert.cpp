@@ -1,3 +1,4 @@
+#include <esp_attr.h>  // ledwall: IRAM_ATTR
 #include "color_convert.h"
 
 //C/p'ed from https://ledshield.wordpress.com/2012/11/13/led-brightness-to-your-eye-gamma-correction-no/
@@ -94,7 +95,7 @@ uint16_t color565(uint8_t r, uint8_t g, uint8_t b)
  * @param uint16_t color - RGB565 input color
  * @param uint8_t &r, &g, &b - refs to variables where converted colours would be emplaced
  */
-void color565to888(const uint16_t color, uint8_t& r, uint8_t& g, uint8_t& b)
+IRAM_ATTR void color565to888(const uint16_t color, uint8_t& r, uint8_t& g, uint8_t& b)  // ledwall: ISR path
 {
   r = ((((color >> 11)) * 527) + 23) >> 6;
   g = ((((color >> 5) & 0x3F) * 259) + 33) >> 6;

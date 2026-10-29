@@ -16,7 +16,7 @@ enum{CMD_DELAY = 10};
 enum{LINE_DELAY = 50};
 
 //массив команд записи в регистры
-const uint8_t ICN2053_REG_CMD[ICN2053_REG_CNT] = {
+DRAM_ATTR const uint8_t ICN2053_REG_CMD[ICN2053_REG_CNT] = {  // ledwall: read from ISR
     ICN2053_WR_CFG1, 
     ICN2053_WR_CFG2, 
     ICN2053_WR_CFG3,
@@ -41,7 +41,7 @@ const driver_rgb_t ICN2038_REG_VALUE[ICN2038_REG_CNT] = {
 
 
 //установка последовательности бит в буфере в буфере
-int data_set(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset,  ESP32_I2S_DMA_STORAGE_TYPE data_mask, int len)
+IRAM_ATTR int data_set(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset,  ESP32_I2S_DMA_STORAGE_TYPE data_mask, int len)
 {	
 	while(len > 0)
 	{
@@ -53,7 +53,7 @@ int data_set(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset,  ESP32_I2S_DMA_STOR
 }
 
 //сброс последовательности бит в буфере в буфере
-int data_clr(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset,  ESP32_I2S_DMA_STORAGE_TYPE data_mask, int len)
+IRAM_ATTR int data_clr(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset,  ESP32_I2S_DMA_STORAGE_TYPE data_mask, int len)
 {
 	while(len > 0)
 	{
@@ -65,7 +65,7 @@ int data_clr(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset,  ESP32_I2S_DMA_STOR
 }
 
 //устновка значения регистра\пикселя в буфере
-int setDataRegBuffer(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset, const driver_rgb_t* regs_data)
+IRAM_ATTR int setDataRegBuffer(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset, const driver_rgb_t* regs_data)
 {
   driver_reg_t r,g,b;
   ESP32_I2S_DMA_STORAGE_TYPE d;
@@ -87,7 +87,7 @@ int setDataRegBuffer(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset, const drive
 }
 
 //запись регистров\заливка строки пикселов в буфере
-int setDataRegBuffer_n(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset, driver_rgb_t* regs_data, int regs_cnt)
+IRAM_ATTR int setDataRegBuffer_n(ESP32_I2S_DMA_STORAGE_TYPE* buffer, int offset, driver_rgb_t* regs_data, int regs_cnt)
 {
 	int i;
   //Serial.println(regs_cnt);
@@ -259,7 +259,7 @@ void MatrixPanel_DMA::icn2053setVSync(bool leds_enable, bool vsync)
 }
 
 //установка значений конфигурационных регистров
-void MatrixPanel_DMA::icn2053setReg(uint8_t reg_idx, driver_rgb_t* regs_data)
+IRAM_ATTR void MatrixPanel_DMA::icn2053setReg(uint8_t reg_idx, driver_rgb_t* regs_data)
 {
   setDataRegBuffer_n(dma_buff.rowBits[offset_prefix], FRAME_ADD_LEN + ICN2053_PREFIX_START_LEN, regs_data, driver_cnt);
   data_clr(dma_buff.rowBits[offset_prefix], dma_buff.frame_prefix_len - DRIVER_BITS, BIT_LAT, DRIVER_BITS);

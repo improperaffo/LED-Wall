@@ -8,8 +8,8 @@ lat = 46.5265
 lon = 6.5610
 
 [brightness]          # 0-255 sent to the panel
-day = 100
-night = 20
+day = 255
+night = 90
 night_start = "22:00"
 night_end = "07:00"
 

@@ -1,6 +1,6 @@
 """Hour-by-hour weather widgets at the panel's native 128x64, all with the red rain flag.
 
-timeline: next 14 h, 3 h icons (with !) over a temperature curve with hourly rain bars
+timeline: next 24 h, 3 h icons (with !) over a temperature curve with hourly rain bars
 nownext:  big current conditions + the next 5 x 3 h slots with rain probability
 rain:     rain-first: headline (when, how much), 24 hourly rain bars, icon strip
 """
@@ -20,7 +20,6 @@ RAIN_DIM = (12, 30, 80)
 LABEL = (150, 150, 150)
 DAY = (255, 200, 0)
 DIM = (60, 60, 60)
-NIGHT = (0, 0, 28)
 DRY = (120, 220, 120)
 
 
@@ -61,9 +60,9 @@ class _Outlook(Screen):
 
 class Timeline(_Outlook):
     """Next HOURS hours from the current hour: 3 h icons over the slice of time they cover
-    (the current slot clipped to 'now'), temperature curve, hourly rain bars, night shading."""
+    (the current slot clipped to 'now'), temperature curve, hourly rain bars."""
     name = "timeline"
-    HOURS = 14
+    HOURS = 24
 
     def draw(self, img, d, now):
         f4 = font("4x6")
@@ -74,19 +73,17 @@ class Timeline(_Outlook):
         x_of = lambda t: (t - t0) / 3600 * px  # noqa: E731
         for i, h in enumerate(hours[:self.HOURS]):
             x0, x1 = round(i * px), round((i + 1) * px) - 1
-            if self.w.is_night(h["t"] + 1800):
-                d.rectangle((x0, top, x1, 63), fill=NIGHT)
             if h["mm"] > 0.05:  # 4 mm/h fills the chart
                 bar = max(1, round(min(h["mm"], 4) / 4 * (63 - top)))
                 d.rectangle((x0 + 1, 63 - bar + 1, x1 - 1, 63), fill=RAIN)
             if time.localtime(h["t"]).tm_hour == 0 and i:
                 for y in range(top, 64, 2):
                     img.putpixel((x0, y), DIM)
-        for s in self.w.slots(6, now):
+        for s in self.w.slots(self.HOURS // 3 + 2, now):
             a, b = max(x_of(s["t"]), 0), min(x_of(s["t"] + 10800), 128)
-            if b - a < 11:  # less than an icon's width of this slot is visible
+            if b - a < 6:  # too little of this slot left to place its icon
                 continue
-            cx = round((a + b) / 2)
+            cx = max(round((a + b) / 2), 6)
             if s["t"] <= now:
                 label, color = "now", LABEL
             else:
@@ -99,7 +96,7 @@ class Timeline(_Outlook):
         lo, hi = min(temps), max(temps)
         if hi - lo < 4:
             lo, hi = (hi + lo) / 2 - 2, (hi + lo) / 2 + 2
-        y0, ch = top + 4, 63 - top - 4
+        y0, ch = top + 8, 56 - top - 8  # between the max (top) and min (bottom) labels
         prev = None
         for x in range(128):  # hourly means sit mid-hour; interpolate between them
             f = x / px - 0.5

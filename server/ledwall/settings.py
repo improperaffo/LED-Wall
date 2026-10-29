@@ -18,7 +18,7 @@ WIDGETS = {
     "weather": ("Weather + 40 h chart", "weather"),
     "forecast": ("3-day forecast", "weather"),
     "flights": ("Flights overhead", "flights"),
-    "timeline": ("Timeline 24 h (rain !)", "weather"),
+    "timeline": ("Timeline 14 h (rain !)", "weather"),
     "nownext": ("Now + next 15 h", "weather"),
     "rain": ("Rain outlook 48 h", "weather"),
 }

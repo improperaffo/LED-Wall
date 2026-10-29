@@ -1,6 +1,6 @@
 """Hour-by-hour weather widgets at the panel's native 128x64, all with the red rain flag.
 
-timeline: 8 x 3 h slots (hour, icon, !) over a temperature curve with hourly rain bars
+timeline: next 14 h, 3 h icons (with !) over a temperature curve with hourly rain bars
 nownext:  big current conditions + the next 5 x 3 h slots with rain probability
 rain:     rain-first: headline (when, how much), 24 hourly rain bars, icon strip
 """
@@ -60,45 +60,54 @@ class _Outlook(Screen):
 
 
 class Timeline(_Outlook):
+    """Next HOURS hours from the current hour: 3 h icons over the slice of time they cover
+    (the current slot clipped to 'now'), temperature curve, hourly rain bars, night shading."""
     name = "timeline"
+    HOURS = 14
 
     def draw(self, img, d, now):
         f4 = font("4x6")
-        slots = self.w.slots(8, now)
-        hours = self.w.hours_from(slots[0]["t"], 25)
-        px = 16 / 3  # 16 px per 3 h slot
+        t0 = now - now % 3600
+        hours = self.w.hours_from(t0, self.HOURS + 1)
+        px = 128 / self.HOURS
         top = 20
-        for i, h in enumerate(hours[:24]):
+        x_of = lambda t: (t - t0) / 3600 * px  # noqa: E731
+        for i, h in enumerate(hours[:self.HOURS]):
+            x0, x1 = round(i * px), round((i + 1) * px) - 1
             if self.w.is_night(h["t"] + 1800):
-                d.rectangle((round(i * px), top, round((i + 1) * px) - 1, 63), fill=NIGHT)
-        for i, s in enumerate(slots):
-            x = i * 16
-            label, color = hour_label(s["t"])
-            if color == DAY:  # midnight: weekday label + dotted line
-                text(d, x + 1, 0, label, f4, color)
-                for y in range(top, 64, 2):
-                    img.putpixel((x, y), DIM)
-            else:
-                text(d, x + 8, 0, label, f4, color, anchor="c")
-            draw_icon(img, x + 2, 7, s["icon"])
-            if self.wet(s):
-                bang(img, x + 13, 7)
-        for i, h in enumerate(hours[:24]):  # 4 mm/h fills the chart
-            if h["mm"] > 0.05:
+                d.rectangle((x0, top, x1, 63), fill=NIGHT)
+            if h["mm"] > 0.05:  # 4 mm/h fills the chart
                 bar = max(1, round(min(h["mm"], 4) / 4 * (63 - top)))
-                d.rectangle((round(i * px), 63 - bar + 1, round((i + 1) * px) - 2, 63), fill=RAIN)
+                d.rectangle((x0 + 1, 63 - bar + 1, x1 - 1, 63), fill=RAIN)
+            if time.localtime(h["t"]).tm_hour == 0 and i:
+                for y in range(top, 64, 2):
+                    img.putpixel((x0, y), DIM)
+        for s in self.w.slots(6, now):
+            a, b = max(x_of(s["t"]), 0), min(x_of(s["t"] + 10800), 128)
+            if b - a < 11:  # less than an icon's width of this slot is visible
+                continue
+            cx = round((a + b) / 2)
+            if s["t"] <= now:
+                label, color = "now", LABEL
+            else:
+                label, color = hour_label(s["t"])
+            text(d, cx, 0, label, f4, color, anchor="c")
+            draw_icon(img, cx - 5, 7, s["icon"])
+            if self.wet(s):
+                bang(img, cx + 7, 7)
         temps = [h["temp"] for h in hours if h["temp"] is not None]
         lo, hi = min(temps), max(temps)
         if hi - lo < 4:
             lo, hi = (hi + lo) / 2 - 2, (hi + lo) / 2 + 2
         y0, ch = top + 4, 63 - top - 4
         prev = None
-        for x in range(128):
-            f = x / px
-            i = int(f)
-            if i + 1 >= len(hours) or hours[i + 1]["temp"] is None:
+        for x in range(128):  # hourly means sit mid-hour; interpolate between them
+            f = x / px - 0.5
+            i = min(max(int(f), 0), len(hours) - 2)
+            a, b = hours[i]["temp"], hours[i + 1]["temp"]
+            if a is None or b is None:
                 break
-            v = hours[i]["temp"] + (hours[i + 1]["temp"] - hours[i]["temp"]) * (f - i)
+            v = a + (b - a) * min(max(f - i, 0), 1)
             p = (x, round(y0 + ch - 1 - (v - lo) / (hi - lo) * (ch - 1)))
             if prev:
                 d.line((prev, p), fill=temp_color(v))

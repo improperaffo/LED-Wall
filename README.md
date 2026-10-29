@@ -19,7 +19,7 @@ MeteoSwiss / adsb.lol ──HTTPS──> server (Python + Pillow, renders the fr
 | `weather` | Icon, current temperature, today's min/max. Next 40 h as a temperature line with rain bars, night shading and midnight markers | MeteoSwiss app API (`plzDetail`) |
 | `forecast` | Three days: weekday, icon, min/max, rain | MeteoSwiss |
 | `flights` | Nearest airborne aircraft: airline (in its colour), route `GVA→SUF`, callsign, type, altitude, distance, track arrow. With an empty sky it shows "No aircraft" and the last plane seen | [adsb.lol](https://adsb.lol) + VRS route data |
-| `timeline` | MeteoSwiss-style 24 h strip: eight 3-hour slots (hour, icon, red **!** when rain is likely) over a temperature curve with hourly rain bars and night shading | MeteoSwiss (3 h icons, rain probability, hourly rain) |
+| `timeline` | MeteoSwiss-style strip of the next 14 h: 3-hour icons (red **!** when rain is likely) over the time they cover, the current one labelled "now", above a temperature curve with hourly rain bars and night shading | MeteoSwiss (3 h icons, rain probability, hourly rain) |
 | `nownext` | Big current icon and temperature, today's min/max; next five 3-hour slots with icon, temperature, rain-probability bar and % (red with **!** when likely) | MeteoSwiss |
 | `rain` | Rain first: "Rain 18:00 · 4.2 mm" headline (or "Dry next 48 h"), 24 hourly rain bars with probability behind them, 3-hour icon strip | MeteoSwiss |
 

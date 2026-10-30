@@ -1,7 +1,7 @@
 import math
 import time
 
-from ..airlines import airline
+from ..airlines import describe
 from ..render import canvas, font, text, text_fit
 from . import Screen
 
@@ -60,9 +60,7 @@ class Flights(Screen):
                 text(d, 32, 26, ago, f4, DIM, anchor="c")
             return img, 5.0
         cs = a["callsign"] or a.get("r") or a["hex"].upper()
-        route = a.get("route") or {}
-        name, color = airline(cs)
-        name = name or route.get("airline_code") or a.get("r") or ""
+        name, color = describe(a)
         scrolling = False
 
         # Row 1: airline name in its colour, track arrow on the right

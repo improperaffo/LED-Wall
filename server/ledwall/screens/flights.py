@@ -70,11 +70,10 @@ class Flights(Screen):
         if "track" in a:
             draw_arrow(d, 59.5, 3.5, a["track"])
 
-        # Row 2: route (big) or callsign if the route is unknown
-        iata = route.get("_airport_codes_iata", "")
+        # Row 2: route (big) if a plausible leg is known, else the callsign
         big = font("6x10")
-        legs = iata.split("-") if iata else []
-        if len(legs) >= 2:
+        legs = list(a.get("leg") or ())
+        if legs:
             x = text(d, 0, 8, legs[0], big, LINE)
             d.line((x + 1, 12, x + 5, 12), fill=SUB)
             d.line((x + 3, 10, x + 5, 12), fill=SUB)
@@ -83,9 +82,10 @@ class Flights(Screen):
         else:
             text(d, 0, 8, cs, big, LINE)
 
-        # Row 3: callsign + aircraft type
+        # Row 3: with a route: callsign + type; without: type + registration (callsigns often
+        # differ from the flight numbers Flightradar24 & co show, the registration doesn't)
         small = font("4x6")
-        row3 = f"{cs} {a.get('t', '')}".strip() if legs else a.get("t", "")
+        row3 = " ".join(filter(None, [cs, a.get("t", "")] if legs else [a.get("t", ""), a.get("r", "")]))
         scrolling |= text_fit(img, 0, 19, 64, row3, small, SUB, now, h=6)
 
         # Row 4: altitude, distance, ground speed

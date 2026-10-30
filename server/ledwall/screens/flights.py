@@ -1,7 +1,7 @@
 import math
 import time
 
-from ..airlines import describe
+from ..airlines import describe, short_type
 from ..render import canvas, font, text, text_fit
 from . import Screen
 
@@ -82,7 +82,8 @@ class Flights(Screen):
         # Row 3: with a route: callsign + type; without: type + registration (callsigns often
         # differ from the flight numbers Flightradar24 & co show, the registration doesn't)
         small = font("4x6")
-        row3 = " ".join(filter(None, [cs, a.get("t", "")] if legs else [a.get("t", ""), a.get("r", "")]))
+        t = short_type(a.get("t"))
+        row3 = " ".join(filter(None, [cs, t] if legs else [t, a.get("r", "")]))
         text_fit(d, 0, 19, 64, row3, ["4x6", "tom-thumb"], SUB)
 
         # Row 4: altitude, distance, ground speed

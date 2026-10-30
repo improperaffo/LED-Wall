@@ -76,6 +76,27 @@ TYPES = {
     "PA46": "Piper Malibu", "BE20": "King Air 200", "BE9L": "King Air 90", "B350": "King Air 350",
     "P180": "Piaggio Avanti", "DHC6": "Twin Otter",
 }
+# Airliner ICAO type designators -> the usual short names (for the type/registration line)
+AIRLINER_TYPES = {
+    "A19N": "A319neo", "A20N": "A320neo", "A21N": "A321neo", "A318": "A318", "A319": "A319",
+    "A320": "A320", "A321": "A321", "A332": "A330-200", "A333": "A330-300", "A338": "A330-800",
+    "A339": "A330-900", "A343": "A340-300", "A346": "A340-600", "A359": "A350-900", "A35K": "A350-1000",
+    "A388": "A380", "BCS1": "A220-100", "BCS3": "A220-300", "B733": "737-300", "B734": "737-400",
+    "B737": "737-700", "B738": "737-800", "B739": "737-900", "B37M": "737 MAX 7", "B38M": "737 MAX 8",
+    "B39M": "737 MAX 9", "B3XM": "737 MAX 10", "B744": "747-400", "B748": "747-8", "B752": "757-200",
+    "B763": "767-300", "B764": "767-400", "B772": "777-200", "B77L": "777-200LR", "B77W": "777-300ER",
+    "B778": "777-8", "B779": "777-9", "B788": "787-8", "B789": "787-9", "B78X": "787-10",
+    "E170": "E170", "E175": "E175", "E190": "E190", "E195": "E195", "E290": "E190-E2", "E295": "E195-E2",
+    "CRJ7": "CRJ-700", "CRJ9": "CRJ-900", "CRJX": "CRJ-1000", "DH8D": "Dash 8-400", "AT45": "ATR 42-500",
+    "AT46": "ATR 42-600", "AT75": "ATR 72-500", "AT76": "ATR 72-600", "SB20": "Saab 2000",
+    "SU95": "Superjet 100", "C919": "C919",
+}
+
+
+def short_type(t: str | None) -> str:
+    return AIRLINER_TYPES.get(t or "", t or "")
+
+
 # ADS-B emitter category -> label, for aircraft we know nothing else about
 CATEGORIES = {"A1": "Light aircraft", "A2": "Small aircraft", "A7": "Helicopter", "B1": "Glider",
               "B2": "Balloon", "B4": "Ultralight", "B6": "Drone"}

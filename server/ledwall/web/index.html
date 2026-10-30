@@ -118,6 +118,11 @@
   </div>
 
   <div class="card">
+    <h2>Widget options</h2>
+    <div id="options"></div>
+  </div>
+
+  <div class="card">
     <h2>Rain warning</h2>
     <div class="times">
       <span>Red <b style="color:var(--err)">!</b> when chance ≥</span>
@@ -203,6 +208,18 @@ function render() {
     return row;
   }));
   $("alerts").checked = S.flight_alerts;
+
+  $("options").replaceChildren(...META.options.map((o) => {
+    const row = document.createElement("div");
+    row.className = "src";
+    row.innerHTML = `<span class="name">${o.label}</span>
+      <select aria-label="${o.label}" style="width:auto">${o.choices.map((c) =>
+        `<option value="${c}">${c} ${o.unit}</option>`).join("")}</select>`;
+    const sel = row.querySelector("select");
+    sel.value = S.options[o.widget][o.key];
+    sel.onchange = () => { S.options[o.widget][o.key] = Number(sel.value); changed(); };
+    return row;
+  }));
 
   if (document.activeElement !== $("rainProb")) $("rainProb").value = S.rain.prob;
   if (document.activeElement !== $("rainMm")) $("rainMm").value = S.rain.mm;

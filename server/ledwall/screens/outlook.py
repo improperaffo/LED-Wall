@@ -1,6 +1,6 @@
 """Hour-by-hour weather widgets at the panel's native 128x64, all with the red rain flag.
 
-timeline: 24 h from the current 3 h slot, icons (with !) over a temperature curve and hourly rain bars
+timeline: 9-48 h (setting) from the current 3 h slot, icons (with !) over a temperature curve and hourly rain bars
 nownext:  big current conditions + the next 5 x 3 h slots with rain probability
 rain:     rain-first: headline (when, how much), 24 hourly rain bars, icon strip
 """
@@ -61,40 +61,46 @@ class _Outlook(Screen):
 
 
 class Timeline(_Outlook):
-    """24 h from the start of the current 3 h slot: eight full-width slots (hour, icon, !),
-    temperature curve and hourly rain bars across the whole width."""
+    """N hours (setting, multiple of 3) from the start of the current 3 h slot: slots across
+    the full width (hour, icon, !), temperature curve and hourly rain bars."""
     name = "timeline"
-    SLOTS = 8  # x 3 h = 24 h, 16 px each
+    MIN_SLOT_PX = 13  # an icon (11 px) plus a little air
 
     def draw(self, img, d, now):
         f4, f5 = font("4x6"), font("5x7")
-        slots = self.w.slots(self.SLOTS, now)
+        n = self.settings.data["options"]["timeline"]["hours"] // 3
+        slots = self.w.slots(n, now)
         t0 = slots[0]["t"]
-        px = 128 / (self.SLOTS * 3)  # per hour
+        px = 128 / (n * 3)  # per hour
         top, base = 20, 55  # chart rows; 57-63 are the status line (clock, date, min temp)
 
-        # hourly rain bars (4 mm/h fills the chart) and midnight markers
-        for i, h in enumerate(self.w.hours_from(t0, self.SLOTS * 3)):
+        # hourly rain bars (4 mm/h fills the chart, below the max label) and midnight markers
+        gap = 1 if px >= 4 else 0
+        for i, h in enumerate(self.w.hours_from(t0, n * 3)):
             x0, x1 = round(i * px), round((i + 1) * px) - 1
             if h["mm"] > 0.05:
-                bar = max(1, round(min(h["mm"], 4) / 4 * (base - top)))
-                d.rectangle((x0 + 1, base - bar + 1, x1 - 1, base), fill=RAIN)
+                bar = max(1, round(min(h["mm"], 4) / 4 * (base - top - 8)))
+                d.rectangle((x0 + gap, base - bar + 1, max(x0 + gap, x1 - gap), base), fill=RAIN)
             if time.localtime(h["t"]).tm_hour == 0 and i:
                 for y in range(top, base + 1, 2):
                     img.putpixel((x0, y), DIM)
 
-        # slots: label ('now' for the current one), icon, rain flag
-        for i, s in enumerate(slots):
-            x = i * 16
-            label, color = ("now", LABEL) if i == 0 else hour_label(s["t"])
-            text(d, x + 8, 0, label, f4, color, anchor="c")
-            draw_icon(img, x + 2, 7, s["icon"])
-            if self.wet(s):
-                bang(img, x + 13, 7)
+        # icons: one per slot, or per group of slots when a slot is narrower than an icon
+        # (the group shows its first slot's icon and is flagged if any of its slots is wet)
+        sw = 128 / n
+        k = max(1, -(-self.MIN_SLOT_PX // int(sw)))  # ceil
+        for g in range(0, n, k):
+            group = slots[g:g + k]
+            cx = round((g + len(group) / 2) * sw)
+            label, color = ("now", LABEL) if g == 0 else hour_label(group[0]["t"])
+            text(d, cx, 0, label, f4, color, anchor="c")
+            draw_icon(img, cx - 6, 7, group[0]["icon"])
+            if any(self.wet(s) for s in group):
+                bang(img, cx + 5, 7)
 
         # temperature: hourly means sit mid-hour; start an hour early so the left edge
         # interpolates between real points instead of running flat
-        hours = self.w.hours_from(t0 - 3600, self.SLOTS * 3 + 2)
+        hours = self.w.hours_from(t0 - 3600, n * 3 + 2)
         c0 = hours[0]["t"] + 1800
         vals = []
         for x in range(128):

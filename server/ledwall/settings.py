@@ -28,6 +28,10 @@ SOURCES = {
     "flights": ("Flights (adsb.lol)", 5, 3600),
 }
 SECONDS_RANGE = (2, 3600)
+# per-widget options: widget -> key -> (label, unit, allowed values, default)
+OPTIONS = {
+    "timeline": {"hours": ("Timeline: time horizon", "h", [9, 12, 15, 18, 21, 24, 30, 36, 42, 48], 24)},
+}
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 STATE_PATH = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "ledwall" / "settings.json"
@@ -48,6 +52,7 @@ def defaults(cfg: dict) -> dict:
         "hours": {"enabled": True, "days": [0, 1, 2, 3, 4, 5], "start": "08:00", "end": "19:00"},
         # red ! on a 3 h slot when rain is at least this likely or this much is forecast
         "rain": {"prob": 30, "mm": 0.2},
+        "options": {w: {k: spec[3] for k, spec in opts.items()} for w, opts in OPTIONS.items()},
     }
 
 
@@ -116,6 +121,17 @@ def validate(data: dict, base: dict) -> dict:
     out["rain"] = {"prob": _int(rain.get("prob"), 1, 100, "rain probability"),
                    "mm": _float(rain.get("mm"), 0.1, 50, "rain amount")}
 
+    given = data.get("options") or {}
+    out["options"] = {}
+    for w, opts in OPTIONS.items():
+        cur = {**base["options"][w], **(given.get(w) or {})}
+        out["options"][w] = {}
+        for k, (label, unit, allowed, _) in opts.items():
+            v = cur.get(k)
+            if v not in allowed:
+                raise ValueError(f"{label}: must be one of {', '.join(map(str, allowed))} {unit}")
+            out["options"][w][k] = v
+
     refresh = {**base["refresh"], **(data.get("refresh") or {})}
     out["refresh"] = {src: _int(refresh.get(src), lo, hi, f"{label} refresh")
                       for src, (label, lo, hi) in SOURCES.items()}
@@ -167,4 +183,6 @@ class Settings:
             "sources": [{"name": n, "label": label, "min": lo, "max": hi} for n, (label, lo, hi) in SOURCES.items()],
             "seconds": {"min": SECONDS_RANGE[0], "max": SECONDS_RANGE[1]},
             "days": DAYS,
+            "options": [{"widget": w, "key": k, "label": label, "unit": unit, "choices": allowed}
+                        for w, opts in OPTIONS.items() for k, (label, unit, allowed, _) in opts.items()],
         }

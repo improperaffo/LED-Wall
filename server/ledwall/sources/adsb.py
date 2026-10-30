@@ -61,9 +61,12 @@ def plausible_leg(airports: list[dict] | None, a: dict) -> tuple[str, str] | Non
 class Adsb(Poller):
     name = "flights"
 
-    def __init__(self, lat: float, lon: float, radius_km: float, interval: float = 15, logos=None):
+    def __init__(self, lat: float, lon: float, radius_km: float, interval: float = 15, logos=None,
+                 flightaware=None):
         super().__init__(interval)
         self.logos = logos
+        self.flightaware = flightaware      # optional paid fallback for routes
+        self.flightaware_active = False     # only while the flights widget is on screen
         self.lat, self.lon, self.radius_km = lat, lon, radius_km
         self.groups = {"airliners", "business", "light", "heli"}  # aircraft_group()s to keep
         self.aircraft: list[dict] = []   # nearest first, airborne only
@@ -142,6 +145,17 @@ class Adsb(Poller):
                         self.logos.fetch(airline_iata(a["callsign"]))
                 except Exception as e:
                     log.debug("route %s: %s", a["callsign"], e)
+        # paid fallback: only the aircraft on screen, only airliners the free sources missed
+        if out and self.flightaware and self.flightaware_active:
+            a = out[0]
+            if a["group"] == "airliners" and a["callsign"] and not a.get("leg"):
+                try:
+                    fa = self.flightaware.lookup(a["callsign"])
+                except Exception as e:
+                    log.warning("FlightAware %s: %s", a["callsign"], e)
+                    fa = None
+                if fa:
+                    a["leg"], a["flight_no"] = fa["leg"], fa["number"]
         self.aircraft = out
         self.updated = time.time()
         if out:

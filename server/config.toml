@@ -26,3 +26,4 @@ screens = [["clock", 10], ["weather", 15], ["forecast", 10], ["flights", 15]]
 poll_s = 15
 alert_km = 6          # a new aircraft this close and low interrupts the rotation
 alert_max_alt_ft = 15000
+flightaware_daily_cap = 30  # optional FlightAware AeroAPI lookups per day (needs LEDWALL_FLIGHTAWARE_KEY)

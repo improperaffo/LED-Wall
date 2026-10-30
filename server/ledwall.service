@@ -10,6 +10,8 @@ ExecStart=/usr/bin/python3 -m ledwall
 Restart=always
 RestartSec=5
 Environment=TZ=Europe/Zurich
+# optional secrets, e.g. LEDWALL_FLIGHTAWARE_KEY=...; outside the repo, mode 600
+EnvironmentFile=-/home/sens/.config/ledwall/env
 
 [Install]
 WantedBy=multi-user.target

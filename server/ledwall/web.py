@@ -101,6 +101,8 @@ class Web:
             "brightness": self.hub.brightness,
             "data_age_s": {"weather": age(self.app.weather.updated), "flights": age(self.app.adsb.updated)},
             "aircraft": len(self.app.adsb.aircraft),
+            "flightaware": ({"used_today": fa.used_today, "daily_cap": fa.daily_cap}
+                            if (fa := self.app.adsb.flightaware) else None),
         }
 
     def frame_png(self) -> bytes:

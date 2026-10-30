@@ -78,7 +78,8 @@ class Flights(Screen):
         # Below: with a route: callsign + type; without: type + registration (callsigns often
         # differ from the flight numbers Flightradar24 & co show, the registration doesn't)
         t = short_type(a.get("t"))
-        row3 = " ".join(filter(None, [cs, t] if legs else [t, a.get("r", "")]))
+        ident = a.get("flight_no") or cs  # FlightAware gives the marketed flight number
+        row3 = " ".join(filter(None, [ident, t] if legs else [t, a.get("r", "")]))
         text_fit(d, 0, 40, 128, row3, ["6x10", "5x7", "4x6"], SUB)
 
         # Bottom: altitude, ground speed, distance

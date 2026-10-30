@@ -9,6 +9,7 @@ from .screens.flights import Flights
 from .screens.outlook import NowNext, RainFirst, Timeline
 from .screens.weather import Forecast, Weather
 from .sources.adsb import Adsb
+from .sources.flightaware import FlightAware
 from .sources.logos import Logos
 from .sources.meteoswiss import MeteoSwiss
 
@@ -32,7 +33,8 @@ class App:
         self.settings = settings or Settings(cfg)
         self.adsb = Adsb(loc["lat"], loc["lon"],
                          self.settings.data["options"]["flights"]["radius_km"], fl["poll_s"],
-                         logos=Logos())
+                         logos=Logos(),
+                         flightaware=FlightAware.from_env(int(fl.get("flightaware_daily_cap", 30))))
         self.flights = Flights(self.adsb, fl["alert_km"], fl["alert_max_alt_ft"])
         self.screens = {s.name: s for s in (
             Clock(self.weather), Weather(self.weather), Forecast(self.weather), self.flights,
@@ -48,12 +50,13 @@ class App:
         fo = s["options"]["flights"]
         self.adsb.set_radius(fo["radius_km"])
         self.adsb.set_groups({g for g in ("airliners", "business", "light", "heli") if fo[g]})
+        flights_shown = "flights" in self.settings.active()
+        self.adsb.flightaware_active = flights_shown and self.settings.is_on()
         if not self.settings.is_on():
             self.weather.set_interval(OFF_POLL_S)
             self.adsb.set_interval(OFF_POLL_S)
             return
         self.weather.set_interval(s["refresh"]["weather"])
-        flights_shown = "flights" in self.settings.active()
         self.adsb.set_interval(s["refresh"]["flights"] if flights_shown else IDLE_POLL_S)
 
     def show_now(self, name: str):

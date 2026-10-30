@@ -27,6 +27,18 @@ MeteoSwiss / adsb.lol ──HTTPS──> server (Python + Pillow, renders the fr
 
 A screen without data is skipped. A new aircraft that comes close and low can interrupt the rotation.
 
+## Screenshots
+
+Rendered with the LED look by `server/screenshots.py`. The weather widgets use live MeteoSwiss data with a simulated shower, so the rain warnings appear. The flights examples omit airline logos, which the panel shows to the left of the airline name.
+
+| | |
+|---|---|
+| ![Timeline](docs/screenshots/timeline.png)<br>`timeline`: 24 h strip, red **!** where rain is likely | ![Now + next 15 h](docs/screenshots/nownext.png)<br>`nownext`: current conditions and the next five 3-hour slots |
+| ![Rain outlook](docs/screenshots/rain.png)<br>`rain`: when it starts raining and how much | ![Clock](docs/screenshots/clock.png)<br>`clock` |
+| ![Weather](docs/screenshots/weather.png)<br>`weather`: now and a 40 h chart | ![Forecast](docs/screenshots/forecast.png)<br>`forecast`: three days |
+| ![Flights](docs/screenshots/flights.png)<br>`flights`: route checked against the aircraft | ![Flights, unsure route](docs/screenshots/flights-unsure.png)<br>`flights`: stored route contradicts the aircraft, shown dimmed with "?" |
+| ![Flights, helicopter](docs/screenshots/flights-heli.png)<br>`flights`: helicopter, operator by callsign | |
+
 ## Control page
 
 The server serves a control page on port 8080, e.g. `http://pigate.local:8080`. It has no login, so keep it on the LAN or a tailnet. On the page you can:
@@ -36,6 +48,8 @@ The server serves a control page on port 8080, e.g. `http://pigate.local:8080`. 
 - set widget options: the Timeline's time horizon (9–48 h), the flight search radius (10–150 km, default 40 km), and which aircraft groups the flights widget shows (airliners, business & private, light aircraft & gliders, helicopters). Unticked groups are ignored entirely, including for alerts;
 - turn flight alerts on or off;
 - set **operating hours**: the days and the window during which the panel lights up (default Mon–Sat 08:00–19:00). Outside them the panel is dark and data is fetched only every 30 min. A window may run past midnight.
+
+<img src="docs/screenshots/control-page.png" alt="Control page" width="320" align="right">
 
 Changes apply immediately and auto-save to `~/.local/state/ledwall/settings.json`. That file is outside the code tree, so deploys don't touch it.
 

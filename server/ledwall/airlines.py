@@ -61,16 +61,25 @@ AIRLINES = {
 DEFAULT_COLOR = (170, 170, 170)
 
 
-def _load_vrs() -> dict[str, str]:
+def _load_vrs() -> list[dict]:
     path = Path(__file__).resolve().parent.parent / "data" / "airlines.csv"
     try:
         with open(path, encoding="utf-8-sig", newline="") as f:
-            return {r["ICAO"]: r["Name"] for r in csv.DictReader(f) if r.get("ICAO") and r.get("Name")}
+            return [r for r in csv.DictReader(f) if r.get("ICAO")]
     except OSError:
-        return {}
+        return []
 
 
-VRS_AIRLINES = _load_vrs()
+_VRS = _load_vrs()
+VRS_AIRLINES = {r["ICAO"]: r["Name"] for r in _VRS if r.get("Name")}
+VRS_IATA = {r["ICAO"]: r["IATA"] for r in _VRS if r.get("IATA")}
+
+
+def airline_iata(callsign: str) -> str | None:
+    """IATA code of the airline behind an airline-style callsign (for its logo)."""
+    if len(callsign) > 3 and callsign[:3].isalpha() and callsign[3].isdigit():
+        return VRS_IATA.get(callsign[:3])
+    return None
 
 
 # Common business, general-aviation and helicopter types (ICAO type designator -> name)

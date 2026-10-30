@@ -9,6 +9,7 @@ from .screens.flights import Flights
 from .screens.outlook import NowNext, RainFirst, Timeline
 from .screens.weather import Forecast, Weather
 from .sources.adsb import Adsb
+from .sources.logos import Logos
 from .sources.meteoswiss import MeteoSwiss
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config.toml"
@@ -30,7 +31,8 @@ class App:
         self.weather = MeteoSwiss(loc["plz"])
         self.settings = settings or Settings(cfg)
         self.adsb = Adsb(loc["lat"], loc["lon"],
-                         self.settings.data["options"]["flights"]["radius_km"], fl["poll_s"])
+                         self.settings.data["options"]["flights"]["radius_km"], fl["poll_s"],
+                         logos=Logos())
         self.flights = Flights(self.adsb, fl["alert_km"], fl["alert_max_alt_ft"])
         self.screens = {s.name: s for s in (
             Clock(self.weather), Weather(self.weather), Forecast(self.weather), self.flights,

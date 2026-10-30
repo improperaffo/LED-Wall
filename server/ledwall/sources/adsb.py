@@ -4,7 +4,7 @@ import math
 import time
 import urllib.error
 
-from ..airlines import aircraft_group
+from ..airlines import aircraft_group, airline_iata
 from . import Poller, fetch_json
 
 log = logging.getLogger(__name__)
@@ -61,8 +61,9 @@ def plausible_leg(airports: list[dict] | None, a: dict) -> tuple[str, str] | Non
 class Adsb(Poller):
     name = "flights"
 
-    def __init__(self, lat: float, lon: float, radius_km: float, interval: float = 15):
+    def __init__(self, lat: float, lon: float, radius_km: float, interval: float = 15, logos=None):
         super().__init__(interval)
+        self.logos = logos
         self.lat, self.lon, self.radius_km = lat, lon, radius_km
         self.groups = {"airliners", "business", "light", "heli"}  # aircraft_group()s to keep
         self.aircraft: list[dict] = []   # nearest first, airborne only
@@ -137,6 +138,8 @@ class Adsb(Poller):
                 try:
                     a["route"] = self.route(a["callsign"])
                     a["leg"] = self.leg(a)
+                    if self.logos:
+                        self.logos.fetch(airline_iata(a["callsign"]))
                 except Exception as e:
                     log.debug("route %s: %s", a["callsign"], e)
         self.aircraft = out

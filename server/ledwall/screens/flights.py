@@ -1,17 +1,18 @@
 import math
 import time
 
-from ..airlines import describe, short_type
+from ..airlines import airline_iata, describe, short_type
 from ..render import canvas, font, text, text_fit
 from . import Screen
 
+SIZE = (128, 64)  # native panel resolution (room for the 16x16 logo)
 LINE = (220, 220, 220)
 SUB = (0, 190, 255)
 DIM = (140, 140, 140)
 ARROW = (255, 255, 0)
 
 
-def draw_arrow(d, cx: float, cy: float, track: float, r: float = 3.5):
+def draw_arrow(d, cx: float, cy: float, track: float, r: float = 6):
     """Small plane-ish arrow pointing along the track (degrees, 0 = north/up)."""
     a = math.radians(track)
     def pt(dist, ang):
@@ -45,51 +46,56 @@ class Flights(Screen):
         return False
 
     def render(self, now):
-        img, d = canvas()
+        img, d = canvas(SIZE)
         a = self.adsb.nearest
         if a is None:
-            f4 = font("4x6")
-            text(d, 32, 2, "No aircraft", font("5x7"), LINE, anchor="c")
-            text(d, 32, 11, f"within {self.adsb.radius_km:.0f} km", f4, DIM, anchor="c")
-            if self.adsb.last_seen:
-                t, last = self.adsb.last_seen
-                cs = last["callsign"] or last.get("r") or last["hex"].upper()
-                mins = int((now - t) // 60)
-                ago = "just now" if mins < 1 else f"{mins} min ago" if mins < 60 else f"{mins // 60} h ago"
-                text(d, 32, 19, f"last {cs}", f4, SUB, anchor="c")
-                text(d, 32, 26, ago, f4, DIM, anchor="c")
+            self._empty(d, now)
             return img, 5.0
         cs = a["callsign"] or a.get("r") or a["hex"].upper()
         name, color = describe(a)
 
-        # Row 1: airline name in its colour, track arrow on the right
-        text_fit(d, 0, 0, 54, name, ["5x7", "4x6", "tom-thumb"], color)
+        # Top: logo (if the airline has one), name in its colour, direction arrow (north = up)
+        logo = self.adsb.logos.get(airline_iata(a["callsign"])) if self.adsb.logos else None
+        x = 0
+        if logo is not None:
+            img.paste(logo, (0, 0))
+            x = 20
+        text_fit(d, x, 3, 112 - x, name, ["6x10", "5x7", "4x6"], color)
         if "track" in a:
-            draw_arrow(d, 59.5, 3.5, a["track"])
+            draw_arrow(d, 120.5, 7.5, a["track"])
 
-        # Row 2: route (big) if a plausible leg is known, else the callsign
-        big = font("6x10")
+        # Middle: route (big) if a plausible leg is known, else the callsign
+        big = font("9x18B")
         legs = list(a.get("leg") or ())
         if legs:
-            x = text(d, 0, 8, legs[0], big, LINE)
-            d.line((x + 1, 12, x + 5, 12), fill=SUB)
-            d.line((x + 3, 10, x + 5, 12), fill=SUB)
-            d.line((x + 3, 14, x + 5, 12), fill=SUB)
-            text(d, x + 7, 8, legs[-1], big, LINE)
+            x = text(d, 0, 19, legs[0], big, LINE)
+            d.line((x + 3, 28, x + 12, 28), fill=SUB, width=2)
+            d.polygon([(x + 13, 28), (x + 9, 24), (x + 9, 32)], fill=SUB)
+            text(d, x + 17, 19, legs[-1], big, LINE)
         else:
-            text(d, 0, 8, cs, big, LINE)
+            text_fit(d, 0, 19, 128, cs, ["9x18B", "6x10"], LINE)
 
-        # Row 3: with a route: callsign + type; without: type + registration (callsigns often
+        # Below: with a route: callsign + type; without: type + registration (callsigns often
         # differ from the flight numbers Flightradar24 & co show, the registration doesn't)
-        small = font("4x6")
         t = short_type(a.get("t"))
         row3 = " ".join(filter(None, [cs, t] if legs else [t, a.get("r", "")]))
-        text_fit(d, 0, 19, 64, row3, ["4x6", "tom-thumb"], SUB)
+        text_fit(d, 0, 40, 128, row3, ["6x10", "5x7", "4x6"], SUB)
 
-        # Row 4: altitude, distance, ground speed
-        alt = int(a["alt_baro"])
-        m = alt * 0.3048  # barometric altitude, feet -> metres (100 m steps up high, 10 m low)
-        alt_s = f"{round(m, -2):.0f}m" if m >= 1000 else f"{round(m, -1):.0f}m"
-        text(d, 0, 26, alt_s, small, DIM)
-        text(d, 63, 26, f"{a['dist_km']:.1f}km", small, DIM, anchor="r")
+        # Bottom: altitude, ground speed, distance
+        f5 = font("5x7")
+        m = int(a["alt_baro"]) * 0.3048  # barometric altitude, feet -> metres
+        text(d, 0, 56, f"{round(m, -2):.0f} m" if m >= 1000 else f"{round(m, -1):.0f} m", f5, DIM)
+        if a.get("gs") is not None:
+            text(d, 64, 56, f"{a['gs'] * 1.852:.0f} km/h", f5, DIM, anchor="c")
+        text(d, 127, 56, f"{a['dist_km']:.1f} km", f5, DIM, anchor="r")
         return img, 1.0
+
+    def _empty(self, d, now):
+        text(d, 64, 8, "No aircraft", font("9x18B"), LINE, anchor="c")
+        text(d, 64, 28, f"within {self.adsb.radius_km:.0f} km", font("6x10"), DIM, anchor="c")
+        if self.adsb.last_seen:
+            t, last = self.adsb.last_seen
+            cs = last["callsign"] or last.get("r") or last["hex"].upper()
+            mins = int((now - t) // 60)
+            ago = "just now" if mins < 1 else f"{mins} min ago" if mins < 60 else f"{mins // 60} h ago"
+            text(d, 64, 48, f"last {cs}, {ago}", font("5x7"), SUB, anchor="c")

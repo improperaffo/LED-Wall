@@ -10,6 +10,7 @@ log = logging.getLogger(__name__)
 NM = 1.852
 POINT_URL = "https://api.adsb.lol/v2/point/{lat}/{lon}/{nm}"
 ROUTE_URL = "https://vrs-standing-data.adsb.lol/routes/{p}/{cs}.json"
+ADSBDB_URL = "https://api.adsbdb.com/v0/callsign/{cs}"
 
 
 def _dist_km(lat1, lon1, lat2, lon2) -> float:
@@ -26,14 +27,14 @@ def _bearing(lat1, lon1, lat2, lon2) -> float:
     return (math.degrees(math.atan2(y, x)) + 360) % 360
 
 
-def plausible_leg(route: dict | None, a: dict) -> tuple[str, str] | None:
+def plausible_leg(airports: list[dict] | None, a: dict) -> tuple[str, str] | None:
     """The (origin, destination) IATA pair of the route leg this aircraft is actually flying.
 
     The VRS route data is crowd-sourced and callsigns get reused, so a stored route can be
     stale, and multi-stop routes list every stop. A leg A->B is accepted only if the aircraft
     is roughly on the way (A->P->B at most 25 % + 100 km longer than A->B) and its track points
     towards B (within 60 deg, unless it is within 50 km of B and manoeuvring)."""
-    airports = (route or {}).get("_airports") or []
+    airports = airports or []
     lat, lon, track = a.get("lat"), a.get("lon"), a.get("track")
     if len(airports) < 2 or lat is None:
         return None
@@ -69,19 +70,41 @@ class Adsb(Poller):
             self.radius_km = km
             self._wake.set()  # re-query now with the new radius
 
-    def route(self, callsign: str) -> dict | None:
-        """Cached route lookup; None if unknown (non-scheduled callsign)."""
-        hit = self._routes.get(callsign)
+    def _cached(self, key: str, fetch):
+        hit = self._routes.get(key)
         if hit and time.time() - hit[0] < 6 * 3600:
             return hit[1]
         try:
-            r = fetch_json(ROUTE_URL.format(p=callsign[:2], cs=callsign))
+            r = fetch()
         except urllib.error.HTTPError as e:
             if e.code != 404:
                 raise
             r = None
-        self._routes[callsign] = (time.time(), r)
+        self._routes[key] = (time.time(), r)
         return r
+
+    def route(self, callsign: str) -> dict | None:
+        """VRS standing-data route (cached); None if unknown."""
+        return self._cached("vrs:" + callsign, lambda: fetch_json(ROUTE_URL.format(p=callsign[:2], cs=callsign)))
+
+    def adsbdb_airports(self, callsign: str) -> list[dict] | None:
+        """Route stops from adsbdb.com (cached), in the VRS _airports shape; None if unknown."""
+        def fetch():
+            resp = fetch_json(ADSBDB_URL.format(cs=callsign)).get("response")
+            fr = resp.get("flightroute") if isinstance(resp, dict) else None
+            if not fr:
+                return None
+            stops = [fr.get("origin"), fr.get("midpoint"), fr.get("destination")]
+            return [dict(iata=s.get("iata_code"), icao=s.get("icao_code"), lat=s["latitude"], lon=s["longitude"])
+                    for s in stops if s]
+        return self._cached("adsbdb:" + callsign, fetch)
+
+    def leg(self, a: dict) -> tuple[str, str] | None:
+        """First route leg consistent with the aircraft, from VRS, else adsbdb."""
+        leg = plausible_leg((a.get("route") or {}).get("_airports"), a)
+        if leg is None:
+            leg = plausible_leg(self.adsbdb_airports(a["callsign"]), a)
+        return leg
 
     def refresh(self):
         nm = max(1, round(self.radius_km / NM))
@@ -101,7 +124,7 @@ class Adsb(Poller):
             if a["callsign"]:
                 try:
                     a["route"] = self.route(a["callsign"])
-                    a["leg"] = plausible_leg(a["route"], a)
+                    a["leg"] = self.leg(a)
                 except Exception as e:
                     log.debug("route %s: %s", a["callsign"], e)
         self.aircraft = out

@@ -60,14 +60,9 @@ class _Outlook(Screen):
         return img, 60 - (now % 60)
 
 
-def _dim(c: tuple, k: float = 0.4) -> tuple:
-    return tuple(int(v * k) for v in c)
-
-
 class Timeline(_Outlook):
     """24 h from the start of the current 3 h slot: eight full-width slots (hour, icon, !),
-    temperature curve and hourly rain bars across the whole width; the part of the current
-    slot that is already past is drawn dimmed."""
+    temperature curve and hourly rain bars across the whole width."""
     name = "timeline"
     SLOTS = 8  # x 3 h = 24 h, 16 px each
 
@@ -77,15 +72,13 @@ class Timeline(_Outlook):
         t0 = slots[0]["t"]
         px = 128 / (self.SLOTS * 3)  # per hour
         top, base = 20, 55  # chart rows; 57-63 are the status line (clock, date, min temp)
-        x_now = (now - t0) / 3600 * px
 
         # hourly rain bars (4 mm/h fills the chart) and midnight markers
         for i, h in enumerate(self.w.hours_from(t0, self.SLOTS * 3)):
             x0, x1 = round(i * px), round((i + 1) * px) - 1
             if h["mm"] > 0.05:
                 bar = max(1, round(min(h["mm"], 4) / 4 * (base - top)))
-                d.rectangle((x0 + 1, base - bar + 1, x1 - 1, base),
-                            fill=_dim(RAIN) if x1 < x_now else RAIN)
+                d.rectangle((x0 + 1, base - bar + 1, x1 - 1, base), fill=RAIN)
             if time.localtime(h["t"]).tm_hour == 0 and i:
                 for y in range(top, base + 1, 2):
                     img.putpixel((x0, y), DIM)
@@ -120,8 +113,7 @@ class Timeline(_Outlook):
             for x, v in enumerate(vals):
                 p = (x, round(y0 + ch - 1 - (v - lo) / (hi - lo) * (ch - 1)))
                 if prev:
-                    c = temp_color(v)
-                    d.line((prev, p), fill=_dim(c) if x < x_now else c)
+                    d.line((prev, p), fill=temp_color(v))
                 prev = p
             text(d, 127, top + 1, f"{max(vals):.0f}°", f5, TMAX, anchor="r")
             text(d, 127, 57, f"{min(vals):.0f}°", f5, TMIN, anchor="r")

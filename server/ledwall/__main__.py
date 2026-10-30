@@ -120,7 +120,8 @@ async def main():
     web = await asyncio.start_server(Web(app, hub).handle, cfg["server"]["host"], cfg["server"].get("web_port", 8080))
     log.info("control page on %s", ", ".join(str(s.getsockname()) for s in web.sockets))
     async with server, web:
-        await asyncio.gather(app.weather.run(), app.adsb.run(), app.radar.run(), render_loop(app, hub))
+        await asyncio.gather(app.weather.run(), app.adsb.run(), app.radar.run(), app.tracker.run(),
+                             render_loop(app, hub))
 
 
 if __name__ == "__main__":

@@ -212,6 +212,15 @@ function render() {
   $("options").replaceChildren(...META.options.map((o) => {
     const row = document.createElement("div");
     row.className = "src";
+    if (o.kind === "text") {
+      row.innerHTML = `<span class="name">${o.label}</span>
+        <input type="text" maxlength="12" placeholder="e.g. KL591" autocapitalize="characters"
+          aria-label="${o.label}" style="width:120px;font:inherit;color:var(--text);background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px 8px">`;
+      const inp = row.querySelector("input");
+      if (document.activeElement !== inp) inp.value = S.options[o.widget][o.key];
+      inp.onchange = () => { S.options[o.widget][o.key] = inp.value.trim().toUpperCase(); changed(); };
+      return row;
+    }
     if (o.kind === "bool") {
       row.innerHTML = `<label class="toggle"><input type="checkbox"> <span class="name">${o.label}</span></label>`;
       const chk = row.querySelector("input");

@@ -13,6 +13,8 @@ from .sources.flightaware import FlightAware
 from .sources.logos import Logos
 from .sources.meteoswiss import MeteoSwiss
 from .sources.radar import Radar as RadarSource
+from .sources.tracker import Tracker as TrackerSource
+from .screens.tracker import Tracker
 from .screens.radar import Radar
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config.toml"
@@ -38,12 +40,14 @@ class App:
                          self.settings.data["options"]["flights"]["radius_km"], fl["poll_s"],
                          logos=Logos(),
                          flightaware=FlightAware.from_env(int(fl.get("flightaware_daily_cap", 30))))
+        self.tracker = TrackerSource(self.adsb, (loc["lat"], loc["lon"]))
         self.flights = Flights(self.adsb, fl["alert_km"], fl["alert_max_alt_ft"])
         self.screens = {s.name: s for s in (
             Clock(self.weather), Weather(self.weather), Forecast(self.weather), self.flights,
             Timeline(self.weather, self.settings), NowNext(self.weather, self.settings),
             RainFirst(self.weather, self.settings),
-            Radar(self.radar, self.settings, (loc["lat"], loc["lon"])))}
+            Radar(self.radar, self.settings, (loc["lat"], loc["lon"])),
+            Tracker(self.tracker))}
         self._current = None   # name of the widget on screen
         self._since = 0.0
         self.apply_settings()
@@ -60,7 +64,11 @@ class App:
             self.weather.set_interval(OFF_POLL_S)
             self.adsb.set_interval(OFF_POLL_S)
             self.radar.set_interval(OFF_POLL_S)
+            self.tracker.set_interval(OFF_POLL_S)
             return
+        self.tracker.set_target(s["options"]["tracker"]["flight"])
+        tracker_shown = "tracker" in self.settings.active() and bool(self.tracker.target)
+        self.tracker.set_interval(s["refresh"]["flights"] if tracker_shown else OFF_POLL_S)
         radar_shown = "radar" in self.settings.active()
         self.radar.set_interval(s["refresh"]["radar"] if radar_shown else OFF_POLL_S)
         self.weather.set_interval(s["refresh"]["weather"])

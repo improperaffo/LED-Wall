@@ -22,6 +22,7 @@ WIDGETS = {
     "nownext": ("Now + next 15 h", "weather"),
     "rain": ("Rain outlook 48 h", "weather"),
     "radar": ("Rain radar map", "radar"),
+    "tracker": ("Track a flight", "flights"),
 }
 SOURCES = {
     # name -> (label, min seconds, max seconds); minimums keep us polite to the APIs
@@ -33,6 +34,7 @@ SECONDS_RANGE = (2, 3600)
 # per-widget options: widget -> key -> (label, unit, allowed values, default)
 OPTIONS = {
     "timeline": {"hours": ("Timeline: time horizon", "h", [9, 12, 15, 18, 21, 24, 30, 36, 42, 48], 24)},
+    "tracker": {"flight": ("Track: flight no., callsign or registration", "", "text", "")},
     "radar": {"area": ("Radar: map area", "", ["Lake Geneva", "Romandie", "Switzerland"], "Lake Geneva")},
     "flights": {
         "radius_km": ("Flights: search radius", "km", [10, 15, 25, 40, 60, 100, 150], 40),
@@ -139,7 +141,11 @@ def validate(data: dict, base: dict) -> dict:
         out["options"][w] = {}
         for k, (label, unit, allowed, _) in opts.items():
             v = cur.get(k)
-            if allowed == [True, False]:
+            if allowed == "text":
+                if not isinstance(v, str) or len(v) > 12 or not re.fullmatch(r"[A-Za-z0-9 -]*", v):
+                    raise ValueError(f"{label}: letters, digits and '-' only, at most 12")
+                v = v.strip().upper()
+            elif allowed == [True, False]:
                 if not isinstance(v, bool):
                     raise ValueError(f"{label}: must be true or false")
             elif isinstance(v, bool) or v not in allowed:
@@ -198,6 +204,6 @@ class Settings:
             "seconds": {"min": SECONDS_RANGE[0], "max": SECONDS_RANGE[1]},
             "days": DAYS,
             "options": [{"widget": w, "key": k, "label": label, "unit": unit, "choices": allowed,
-                         "kind": "bool" if allowed == [True, False] else "choice"}
+                         "kind": "text" if allowed == "text" else "bool" if allowed == [True, False] else "choice"}
                         for w, opts in OPTIONS.items() for k, (label, unit, allowed, _) in opts.items()],
         }

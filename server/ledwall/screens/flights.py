@@ -90,7 +90,8 @@ class Flights(Screen):
 
         # Row 4: altitude, distance, ground speed
         alt = int(a["alt_baro"])
-        alt_s = f"FL{alt // 100:03d}" if alt >= 6000 else f"{alt}ft"
+        m = alt * 0.3048  # barometric altitude, feet -> metres (100 m steps up high, 10 m low)
+        alt_s = f"{round(m, -2):.0f}m" if m >= 1000 else f"{round(m, -1):.0f}m"
         text(d, 0, 26, alt_s, small, DIM)
         text(d, 63, 26, f"{a['dist_km']:.1f}km", small, DIM, anchor="r")
         return img, (0.05 if scrolling else 1.0)

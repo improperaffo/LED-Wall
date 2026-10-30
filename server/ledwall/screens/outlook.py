@@ -1,6 +1,6 @@
 """Hour-by-hour weather widgets at the panel's native 128x64, all with the red rain flag.
 
-timeline: next 24 h, 3 h icons (with !) over a temperature curve with hourly rain bars
+timeline: 24 h from the current 3 h slot, icons (with !) over a temperature curve and hourly rain bars
 nownext:  big current conditions + the next 5 x 3 h slots with rain probability
 rain:     rain-first: headline (when, how much), 24 hourly rain bars, icon strip
 """
@@ -60,65 +60,76 @@ class _Outlook(Screen):
         return img, 60 - (now % 60)
 
 
+def _dim(c: tuple, k: float = 0.4) -> tuple:
+    return tuple(int(v * k) for v in c)
+
+
 class Timeline(_Outlook):
-    """Next HOURS hours from the current hour: 3 h icons over the slice of time they cover
-    (the current slot clipped to 'now'), temperature curve, hourly rain bars."""
+    """24 h from the start of the current 3 h slot: eight full-width slots (hour, icon, !),
+    temperature curve and hourly rain bars across the whole width; the part of the current
+    slot that is already past is drawn dimmed."""
     name = "timeline"
-    HOURS = 24
+    SLOTS = 8  # x 3 h = 24 h, 16 px each
 
     def draw(self, img, d, now):
-        f4 = font("4x6")
-        t0 = now - now % 3600
-        hours = self.w.hours_from(t0, self.HOURS + 1)
-        px = 128 / self.HOURS
-        top = 20
-        base = 55  # chart floor; rows 57-63 are the status line (clock, date, min temp)
-        x_of = lambda t: (t - t0) / 3600 * px  # noqa: E731
-        for i, h in enumerate(hours[:self.HOURS]):
+        f4, f5 = font("4x6"), font("5x7")
+        slots = self.w.slots(self.SLOTS, now)
+        t0 = slots[0]["t"]
+        px = 128 / (self.SLOTS * 3)  # per hour
+        top, base = 20, 55  # chart rows; 57-63 are the status line (clock, date, min temp)
+        x_now = (now - t0) / 3600 * px
+
+        # hourly rain bars (4 mm/h fills the chart) and midnight markers
+        for i, h in enumerate(self.w.hours_from(t0, self.SLOTS * 3)):
             x0, x1 = round(i * px), round((i + 1) * px) - 1
-            if h["mm"] > 0.05:  # 4 mm/h fills the chart
+            if h["mm"] > 0.05:
                 bar = max(1, round(min(h["mm"], 4) / 4 * (base - top)))
-                d.rectangle((x0 + 1, base - bar + 1, x1 - 1, base), fill=RAIN)
+                d.rectangle((x0 + 1, base - bar + 1, x1 - 1, base),
+                            fill=_dim(RAIN) if x1 < x_now else RAIN)
             if time.localtime(h["t"]).tm_hour == 0 and i:
                 for y in range(top, base + 1, 2):
                     img.putpixel((x0, y), DIM)
-        for s in self.w.slots(self.HOURS // 3 + 2, now):
-            a, b = max(x_of(s["t"]), 0), min(x_of(s["t"] + 10800), 128)
-            if b - a < 6:  # too little of this slot left to place its icon
-                continue
-            cx = max(round((a + b) / 2), 6)
-            if s["t"] <= now:
-                label, color = "now", LABEL
-            else:
-                label, color = hour_label(s["t"])
-            text(d, cx, 0, label, f4, color, anchor="c")
-            draw_icon(img, cx - 5, 7, s["icon"])
+
+        # slots: label ('now' for the current one), icon, rain flag
+        for i, s in enumerate(slots):
+            x = i * 16
+            label, color = ("now", LABEL) if i == 0 else hour_label(s["t"])
+            text(d, x + 8, 0, label, f4, color, anchor="c")
+            draw_icon(img, x + 2, 7, s["icon"])
             if self.wet(s):
-                bang(img, cx + 7, 7)
-        temps = [h["temp"] for h in hours if h["temp"] is not None]
-        lo, hi = min(temps), max(temps)
-        if hi - lo < 4:
-            lo, hi = (hi + lo) / 2 - 2, (hi + lo) / 2 + 2
-        y0, ch = top + 8, base - top - 8  # below the max label
-        prev = None
-        for x in range(128):  # hourly means sit mid-hour; interpolate between them
-            f = x / px - 0.5
-            i = min(max(int(f), 0), len(hours) - 2)
-            a, b = hours[i]["temp"], hours[i + 1]["temp"]
-            if a is None or b is None:
+                bang(img, x + 13, 7)
+
+        # temperature: hourly means sit mid-hour; start an hour early so the left edge
+        # interpolates between real points instead of running flat
+        hours = self.w.hours_from(t0 - 3600, self.SLOTS * 3 + 2)
+        c0 = hours[0]["t"] + 1800
+        vals = []
+        for x in range(128):
+            f = (t0 + (x + 0.5) / px * 3600 - c0) / 3600
+            i = int(f)
+            if i + 1 >= len(hours) or hours[i]["temp"] is None or hours[i + 1]["temp"] is None:
                 break
-            v = a + (b - a) * min(max(f - i, 0), 1)
-            p = (x, round(y0 + ch - 1 - (v - lo) / (hi - lo) * (ch - 1)))
-            if prev:
-                d.line((prev, p), fill=temp_color(v))
-            prev = p
-        # max temperature top right of the chart; status line: clock and date left, min right
-        f5 = font("5x7")
-        text(d, 127, top + 1, f"{max(temps):.0f}°", f5, TMAX, anchor="r")
+            a, b = hours[i]["temp"], hours[i + 1]["temp"]
+            vals.append(a + (b - a) * (f - i))
+        if vals:
+            lo, hi = min(vals), max(vals)
+            if hi - lo < 4:
+                lo, hi = (hi + lo) / 2 - 2, (hi + lo) / 2 + 2
+            y0, ch = top + 8, base - top - 8  # below the max label
+            prev = None
+            for x, v in enumerate(vals):
+                p = (x, round(y0 + ch - 1 - (v - lo) / (hi - lo) * (ch - 1)))
+                if prev:
+                    c = temp_color(v)
+                    d.line((prev, p), fill=_dim(c) if x < x_now else c)
+                prev = p
+            text(d, 127, top + 1, f"{max(vals):.0f}°", f5, TMAX, anchor="r")
+            text(d, 127, 57, f"{min(vals):.0f}°", f5, TMIN, anchor="r")
+
+        # status line: clock and date
         lt = time.localtime(now)
         x = 1 + text(d, 1, 57, time.strftime("%H:%M", lt), f5, CLOCK)
         text(d, x + 5, 57, time.strftime("%a %d %b", lt), f5, DATE)
-        text(d, 127, 57, f"{min(temps):.0f}°", f5, TMIN, anchor="r")
 
 
 class NowNext(_Outlook):

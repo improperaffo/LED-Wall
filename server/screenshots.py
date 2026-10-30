@@ -54,8 +54,8 @@ def main():
         now = time.time()
         app.weather.refresh()
         real = app.weather.data
-        for name in ("clock", "weather", "forecast", "timeline", "nownext", "rain"):
-            app.weather.data = with_shower(real, now) if name in ("timeline", "nownext", "rain") else real
+        for name in ("clock", "timeline"):  # the widgets shown in the README
+            app.weather.data = with_shower(real, now) if name == "timeline" else real
             img, _ = app.screens[name].render(now)
             led_preview(img.resize((128, 64)) if img.size != (128, 64) else img, scale=5).save(OUT / f"{name}.png")
             print(OUT / f"{name}.png")

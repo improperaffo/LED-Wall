@@ -29,13 +29,11 @@ A screen without data is skipped. A new aircraft that comes close and low can in
 
 ## Screenshots
 
-Rendered with the LED look by `server/screenshots.py`. The weather widgets use live MeteoSwiss data with a simulated shower, so the rain warnings appear. The flights examples omit airline logos, which the panel shows to the left of the airline name.
+Rendered with the LED look by `server/screenshots.py`. The timeline uses live MeteoSwiss data with a simulated shower, so the rain warnings appear. The flights examples omit airline logos, which the panel shows to the left of the airline name.
 
 | | |
 |---|---|
-| ![Timeline](docs/screenshots/timeline.png)<br>`timeline`: 24 h strip, red **!** where rain is likely | ![Now + next 15 h](docs/screenshots/nownext.png)<br>`nownext`: current conditions and the next five 3-hour slots |
-| ![Rain outlook](docs/screenshots/rain.png)<br>`rain`: when it starts raining and how much | ![Clock](docs/screenshots/clock.png)<br>`clock` |
-| ![Weather](docs/screenshots/weather.png)<br>`weather`: now and a 40 h chart | ![Forecast](docs/screenshots/forecast.png)<br>`forecast`: three days |
+| ![Timeline](docs/screenshots/timeline.png)<br>`timeline`: 24 h strip, red **!** where rain is likely | ![Clock](docs/screenshots/clock.png)<br>`clock` |
 | ![Flights](docs/screenshots/flights.png)<br>`flights`: route checked against the aircraft | ![Flights, unsure route](docs/screenshots/flights-unsure.png)<br>`flights`: stored route contradicts the aircraft, shown dimmed with "?" |
 | ![Flights, helicopter](docs/screenshots/flights-heli.png)<br>`flights`: helicopter, operator by callsign | |
 

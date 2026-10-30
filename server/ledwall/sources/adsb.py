@@ -34,23 +34,26 @@ def plausible_leg(airports: list[dict] | None, a: dict) -> tuple[str, str] | Non
     The VRS route data is crowd-sourced and callsigns get reused, so a stored route can be
     stale, and multi-stop routes list every stop. A leg A->B is accepted only if the aircraft
     is roughly on the way (A->P->B at most 25 % + 100 km longer than A->B) and its track points
-    towards B (within 60 deg, unless it is within 50 km of B and manoeuvring)."""
+    towards B (within 60 deg; not checked within 60 km of A, where departures still fly the
+    runway heading, or 50 km of B, where arrivals manoeuvre). Databases often hold only one
+    direction of a route, so B->A is accepted too when the aircraft is flying that way."""
     airports = airports or []
     lat, lon, track = a.get("lat"), a.get("lon"), a.get("track")
     if len(airports) < 2 or lat is None:
         return None
     best = None
-    for A, B in zip(airports, airports[1:]):
+    pairs = list(zip(airports, airports[1:]))
+    for A, B in pairs + [(B, A) for A, B in pairs]:
         ab = _dist_km(A["lat"], A["lon"], B["lat"], B["lon"])
         ap, pb = _dist_km(A["lat"], A["lon"], lat, lon), _dist_km(lat, lon, B["lat"], B["lon"])
         detour = ap + pb - ab
         if detour > 0.25 * ab + 100:
             continue
-        if track is not None and pb > 50:
+        if track is not None and pb > 50 and ap > 60:
             off = abs((_bearing(lat, lon, B["lat"], B["lon"]) - track + 180) % 360 - 180)
             if off > 60:
                 continue
-        if best is None or detour < best[0]:
+        if best is None or detour < best[0] - 1:  # ties: keep the stored direction
             best = (detour, (A.get("iata") or A["icao"], B.get("iata") or B["icao"]))
     return best[1] if best else None
 

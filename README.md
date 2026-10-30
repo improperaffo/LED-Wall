@@ -135,7 +135,8 @@ These all cost debugging time, so they're recorded here:
 ## Data sources
 
 - **Weather**: `https://app-prod-ws.meteoswiss-app.ch/v1/plzDetail?plz=<postcode>00`. This is the unofficial API behind the MeteoSwiss app, so it may change without notice. Polled every 10 min.
-- **Aircraft**: `https://api.adsb.lol/v2/point/<lat>/<lon>/<nm>`, polled every 15 s. Routes come from `https://vrs-standing-data.adsb.lol/routes/<XX>/<CALLSIGN>.json`, falling back to `https://api.adsbdb.com/v0/callsign/<CALLSIGN>`, both cached for 6 h. A route is shown only if one of its legs is consistent with the aircraft's position and heading. Non-scheduled callsigns have no route, and the screen shows the callsign instead.
+- **Aircraft**: `https://api.adsb.lol/v2/point/<lat>/<lon>/<nm>`, polled every 15 s. Routes come from `https://vrs-standing-data.adsb.lol/routes/<XX>/<CALLSIGN>.json`, falling back to `https://api.adsbdb.com/v0/callsign/<CALLSIGN>`, both cached for 6 h. A route is shown only if one of its legs is consistent with the aircraft's position and heading. Databases often store only one direction, so a leg is also accepted reversed when the aircraft is flying that way. The heading isn't checked right after departure or close to the destination.
+- **Airlines**: `server/data/airlines.csv`, the [VRS standing-data](https://github.com/vradarserver/standing-data) airline list (CC0, ~5,900 airlines). A small hand-picked table in `ledwall/airlines.py` adds brand colours and short names for common airlines. Non-scheduled callsigns have no route, and the screen shows the callsign instead.
 
 ## Licences
 

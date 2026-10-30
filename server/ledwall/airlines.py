@@ -1,4 +1,10 @@
-"""ICAO airline prefix -> (display name, brand-ish colour). Unknown prefixes fall back to grey."""
+"""Airline / operator names and colours, aircraft type names and the aircraft groups.
+
+AIRLINES: hand-picked display names and brand colours. Everything else comes from
+data/airlines.csv, the VRS standing-data airline list (CC0, ~6000 airlines,
+github.com/vradarserver/standing-data), shown in the default colour."""
+import csv
+from pathlib import Path
 AIRLINES = {
     "EZS": ("easyJet CH", (255, 110, 0)),
     "EZY": ("easyJet", (255, 110, 0)),
@@ -53,6 +59,18 @@ AIRLINES = {
     "NJE": ("NetJets", (200, 200, 210)), "VJT": ("VistaJet", (230, 30, 40)),
 }
 DEFAULT_COLOR = (170, 170, 170)
+
+
+def _load_vrs() -> dict[str, str]:
+    path = Path(__file__).resolve().parent.parent / "data" / "airlines.csv"
+    try:
+        with open(path, encoding="utf-8-sig", newline="") as f:
+            return {r["ICAO"]: r["Name"] for r in csv.DictReader(f) if r.get("ICAO") and r.get("Name")}
+    except OSError:
+        return {}
+
+
+VRS_AIRLINES = _load_vrs()
 
 
 # Common business, general-aviation and helicopter types (ICAO type designator -> name)
@@ -155,7 +173,12 @@ def describe(a: dict) -> tuple[str, tuple[int, int, int]]:
 
 
 def airline(callsign: str) -> tuple[str | None, tuple[int, int, int]]:
+    """Airline for an airline-style callsign (3 letters + digit): our styled entry, else the
+    VRS airline list in the default colour."""
     prefix = callsign[:3]
-    if prefix in AIRLINES and len(callsign) > 3 and callsign[3].isdigit():
-        return AIRLINES[prefix]
+    if len(callsign) > 3 and prefix.isalpha() and callsign[3].isdigit():
+        if prefix in AIRLINES:
+            return AIRLINES[prefix]
+        if prefix in VRS_AIRLINES:
+            return VRS_AIRLINES[prefix], DEFAULT_COLOR
     return None, DEFAULT_COLOR

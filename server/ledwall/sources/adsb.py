@@ -58,6 +58,19 @@ def plausible_leg(airports: list[dict] | None, a: dict) -> tuple[str, str] | Non
     return best[1] if best else None
 
 
+def closest_leg(airports: list[dict] | None, a: dict) -> tuple[str, str] | None:
+    """The stored leg (in stored direction) whose path passes closest to the aircraft, ignoring
+    its heading: what the database claims, for showing as 'unsure' when no leg is plausible."""
+    airports = airports or []
+    if len(airports) < 2 or a.get("lat") is None:
+        return None
+    lat, lon = a["lat"], a["lon"]
+    detour = lambda A, B: (_dist_km(A["lat"], A["lon"], lat, lon) + _dist_km(lat, lon, B["lat"], B["lon"])  # noqa: E731
+                           - _dist_km(A["lat"], A["lon"], B["lat"], B["lon"]))
+    A, B = min(zip(airports, airports[1:]), key=lambda p: detour(*p))
+    return (A.get("iata") or A["icao"], B.get("iata") or B["icao"])
+
+
 class Adsb(Poller):
     name = "flights"
 
@@ -141,6 +154,9 @@ class Adsb(Poller):
                 try:
                     a["route"] = self.route(a["callsign"])
                     a["leg"] = self.leg(a)
+                    if not a["leg"]:  # stored route contradicts the aircraft: keep it, marked unsure
+                        a["leg_unsure"] = (closest_leg((a["route"] or {}).get("_airports"), a)
+                                           or closest_leg(self.adsbdb_airports(a["callsign"]), a))
                     if self.logos:
                         self.logos.fetch(airline_iata(a["callsign"]))
                 except Exception as e:

@@ -9,6 +9,7 @@ SIZE = (128, 64)  # native panel resolution (room for the 16x16 logo)
 LINE = (220, 220, 220)
 SUB = (0, 190, 255)
 DIM = (140, 140, 140)
+UNSURE = (90, 90, 90)  # route from the database that doesn't match the aircraft
 ARROW = (255, 255, 0)
 
 
@@ -64,14 +65,21 @@ class Flights(Screen):
         if "track" in a:
             draw_arrow(d, 120.5, 7.5, a["track"])
 
-        # Middle: route (big) if a plausible leg is known, else the callsign
+        # Middle: route (big) if a plausible leg is known; a stored route that contradicts the
+        # aircraft's position/heading is shown dimmed with '?'; else the callsign
         big = font("9x18B")
         legs = list(a.get("leg") or ())
+        unsure = not legs and bool(a.get("leg_unsure"))
+        if unsure:
+            legs = list(a["leg_unsure"])
         if legs:
-            x = text(d, 0, 19, legs[0], big, LINE)
-            d.line((x + 3, 28, x + 12, 28), fill=SUB, width=2)
-            d.polygon([(x + 13, 28), (x + 9, 24), (x + 9, 32)], fill=SUB)
-            text(d, x + 17, 19, legs[-1], big, LINE)
+            fg, arrow = (UNSURE, UNSURE) if unsure else (LINE, SUB)
+            x = text(d, 0, 19, legs[0], big, fg)
+            d.line((x + 3, 28, x + 12, 28), fill=arrow, width=2)
+            d.polygon([(x + 13, 28), (x + 9, 24), (x + 9, 32)], fill=arrow)
+            x += 17 + text(d, x + 17, 19, legs[-1], big, fg)
+            if unsure:
+                text(d, x + 1, 19, "?", big, (255, 170, 0))
         else:
             text_fit(d, 0, 19, 128, cs, ["9x18B", "6x10"], LINE)
 

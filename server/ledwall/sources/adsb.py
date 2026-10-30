@@ -4,6 +4,7 @@ import math
 import time
 import urllib.error
 
+from ..airlines import aircraft_group
 from . import Poller, fetch_json
 
 log = logging.getLogger(__name__)
@@ -60,10 +61,16 @@ class Adsb(Poller):
     def __init__(self, lat: float, lon: float, radius_km: float, interval: float = 15):
         super().__init__(interval)
         self.lat, self.lon, self.radius_km = lat, lon, radius_km
+        self.groups = {"airliners", "business", "light", "heli"}  # aircraft_group()s to keep
         self.aircraft: list[dict] = []   # nearest first, airborne only
         self.last_seen: tuple[float, dict] | None = None  # (time, aircraft) of the last nearest one
         self.updated = 0.0
         self._routes: dict[str, tuple[float, dict | None]] = {}
+
+    def set_groups(self, groups: set[str]):
+        if groups != self.groups:
+            self.groups = groups
+            self._wake.set()  # re-filter now
 
     def set_radius(self, km: float):
         if km != self.radius_km:
@@ -118,7 +125,9 @@ class Adsb(Poller):
             if a["dist_km"] > self.radius_km:
                 continue
             a["callsign"] = (a.get("flight") or "").strip()
-            out.append(a)
+            a["group"] = aircraft_group(a)
+            if a["group"] in self.groups:
+                out.append(a)
         out.sort(key=lambda a: a["dist_km"])
         for a in out[:3]:
             if a["callsign"]:

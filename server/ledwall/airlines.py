@@ -60,7 +60,8 @@ TYPES = {
     "EC35": "Airbus H135", "EC45": "Airbus H145", "BK17": "Airbus H145", "EC30": "Airbus H130",
     "AS50": "Ecureuil", "AS55": "Ecureuil 2", "AS65": "Dauphin", "EC55": "Airbus H155", "EC75": "Airbus H175",
     "A109": "AW109", "A119": "AW119", "A139": "AW139", "A169": "AW169", "B06": "Bell 206", "B407": "Bell 407",
-    "B429": "Bell 429", "R22": "Robinson R22", "R44": "Robinson R44", "R66": "Robinson R66", "S76": "Sikorsky S-76",
+    "B429": "Bell 429", "B505": "Bell 505", "AS32": "Super Puma", "AS3B": "Cougar", "EC25": "Airbus H225",
+    "NH90": "NH90", "H160": "Airbus H160", "A149": "AW149", "A189": "AW189", "R22": "Robinson R22", "R44": "Robinson R44", "R66": "Robinson R66", "S76": "Sikorsky S-76",
     "PC12": "Pilatus PC-12", "PC24": "Pilatus PC-24", "PC6T": "Pilatus Porter", "PC21": "Pilatus PC-21",
     "PC7": "Pilatus PC-7", "TBM7": "TBM 700", "TBM8": "TBM 850", "TBM9": "TBM 900", "C208": "Cessna Caravan",
     "C172": "Cessna 172", "C182": "Cessna 182", "C510": "Citation Mustang", "C525": "CitationJet",
@@ -105,6 +106,33 @@ OPERATORS = {  # callsign prefix -> (name, colour), for non-airline operators
     "CEF": ("Czech Air Force", (120, 160, 90)), "SUI": ("Swiss Air Force", (230, 0, 20)),
 }
 HELI_COLOR, GA_COLOR = (255, 120, 80), (120, 200, 255)
+
+HELI_TYPES = {"EC35", "EC45", "BK17", "EC30", "AS50", "AS55", "AS65", "EC55", "EC75", "A109", "A119", "A139",
+              "A169", "B06", "B407", "B429", "R22", "R44", "R66", "S76", "AS32", "AS3B", "EC25", "NH90",
+              "B505", "H160", "EC20", "AS35", "MI8", "H64", "UH1", "A149", "A189"}
+LIGHT_TYPES = {"C172", "C182", "SR20", "SR22", "DA40", "DA42", "DA62", "P28A", "PA46", "PC6T", "PC7", "PC21"}
+BUSINESS_TYPES = {"PC12", "PC24", "TBM7", "TBM8", "TBM9", "C208", "C510", "C525", "C25A", "C25B", "C25C",
+                  "C56X", "C68A", "C700", "E50P", "E55P", "E545", "E550", "LJ45", "LJ75", "CL30", "CL35",
+                  "CL60", "GL5T", "GLEX", "GL7T", "G280", "GLF4", "GLF5", "GLF6", "GA6C", "FA50", "FA7X",
+                  "FA8X", "F900", "F2TH", "HDJT", "SF50", "BE20", "BE9L", "B350", "P180", "DHC6"}
+BUSINESS_OPERATORS = {"NJE", "VJT"}
+
+
+def aircraft_group(a: dict) -> str:
+    """'heli', 'light', 'business' (business jets, private flights) or 'airliners'.
+    Category first (what the transponder says), then the type, then the callsign: airline-style
+    callsigns (3 letters + digit) are airliners unless the operator or type is a business one;
+    registration-style callsigns (HBZZX, N81YY) are private."""
+    cat, t, cs = a.get("category", ""), a.get("t", ""), a.get("callsign", "")
+    if cat == "A7" or t in HELI_TYPES:
+        return "heli"
+    if cat in ("A1", "B1", "B2", "B4", "B6") or t in LIGHT_TYPES:
+        return "light"
+    if cs[:3] in BUSINESS_OPERATORS or t in BUSINESS_TYPES:
+        return "business"
+    if len(cs) > 3 and cs[:3].isalpha() and cs[3].isdigit():
+        return "airliners"
+    return "business"
 
 
 def describe(a: dict) -> tuple[str, tuple[int, int, int]]:

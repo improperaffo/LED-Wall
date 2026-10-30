@@ -31,7 +31,14 @@ SECONDS_RANGE = (2, 3600)
 # per-widget options: widget -> key -> (label, unit, allowed values, default)
 OPTIONS = {
     "timeline": {"hours": ("Timeline: time horizon", "h", [9, 12, 15, 18, 21, 24, 30, 36, 42, 48], 24)},
-    "flights": {"radius_km": ("Flights: search radius", "km", [10, 15, 25, 40, 60, 100, 150], 40)},
+    "flights": {
+        "radius_km": ("Flights: search radius", "km", [10, 15, 25, 40, 60, 100, 150], 40),
+        # aircraft groups (airlines.aircraft_group); an unticked group is ignored entirely
+        "airliners": ("Flights: show airliners", "", [True, False], True),
+        "business": ("Flights: show business & private", "", [True, False], True),
+        "light": ("Flights: show light aircraft & gliders", "", [True, False], True),
+        "heli": ("Flights: show helicopters", "", [True, False], True),
+    },
 }
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -129,7 +136,10 @@ def validate(data: dict, base: dict) -> dict:
         out["options"][w] = {}
         for k, (label, unit, allowed, _) in opts.items():
             v = cur.get(k)
-            if v not in allowed:
+            if allowed == [True, False]:
+                if not isinstance(v, bool):
+                    raise ValueError(f"{label}: must be true or false")
+            elif isinstance(v, bool) or v not in allowed:
                 raise ValueError(f"{label}: must be one of {', '.join(map(str, allowed))} {unit}")
             out["options"][w][k] = v
 
@@ -184,6 +194,7 @@ class Settings:
             "sources": [{"name": n, "label": label, "min": lo, "max": hi} for n, (label, lo, hi) in SOURCES.items()],
             "seconds": {"min": SECONDS_RANGE[0], "max": SECONDS_RANGE[1]},
             "days": DAYS,
-            "options": [{"widget": w, "key": k, "label": label, "unit": unit, "choices": allowed}
+            "options": [{"widget": w, "key": k, "label": label, "unit": unit, "choices": allowed,
+                         "kind": "bool" if allowed == [True, False] else "choice"}
                         for w, opts in OPTIONS.items() for k, (label, unit, allowed, _) in opts.items()],
         }

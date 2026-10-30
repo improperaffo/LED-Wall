@@ -33,7 +33,7 @@ The server serves a control page on port 8080, e.g. `http://pigate.local:8080`. 
 - switch between **Rotate** (cycle through the ticked widgets in order, each for its own number of seconds) and **Single widget** (one widget stays up);
 - reorder the widgets, use **Show now**, and watch a live preview of the panel;
 - set how often each data source is re-fetched (weather at least every 60 s, flights at least every 5 s). A source no visible widget uses drops to polling every 5 min;
-- set widget options: the Timeline's time horizon (9–48 h) and the flight search radius (10–150 km, default 40 km);
+- set widget options: the Timeline's time horizon (9–48 h), the flight search radius (10–150 km, default 40 km), and which aircraft groups the flights widget shows (airliners, business & private, light aircraft & gliders, helicopters). Unticked groups are ignored entirely, including for alerts;
 - turn flight alerts on or off;
 - set **operating hours**: the days and the window during which the panel lights up (default Mon–Sat 08:00–19:00). Outside them the panel is dark and data is fetched only every 30 min. A window may run past midnight.
 
@@ -108,7 +108,7 @@ python3 preview.py flights --fake-flight
 
 ### Adding a screen
 
-Subclass `Screen` in `server/ledwall/screens/`. Implement `render(now)`, which returns `(image, seconds_until_next_frame)`, and optionally `ready()`. Register the screen in `ledwall/app.py`, and add it to `WIDGETS` in `ledwall/settings.py` with its label and data source. It then appears on the control page. Options the widget reads from `settings.data["options"]` are declared in `OPTIONS` in the same file, and the page lists them automatically.
+Subclass `Screen` in `server/ledwall/screens/`. Implement `render(now)`, which returns `(image, seconds_until_next_frame)`, and optionally `ready()`. Register the screen in `ledwall/app.py`, and add it to `WIDGETS` in `ledwall/settings.py` with its label and data source. It then appears on the control page. Options the widget reads from `settings.data["options"]` are declared in `OPTIONS` in the same file (a list of choices for a dropdown, or `[True, False]` for a checkbox), and the page lists them automatically.
 
 Screens draw either on a 64×32 canvas, which the server scales 2× (nearest neighbour) before sending, or at the native 128×64 (`canvas((128, 64))`). Fonts are public-domain X11 BDF fonts in `server/fonts/`, converted to PIL format on first use.
 

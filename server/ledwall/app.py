@@ -43,7 +43,9 @@ class App:
     def apply_settings(self):
         """Push poll intervals to the data sources after a settings change."""
         s = self.settings.data
-        self.adsb.set_radius(s["options"]["flights"]["radius_km"])
+        fo = s["options"]["flights"]
+        self.adsb.set_radius(fo["radius_km"])
+        self.adsb.set_groups({g for g in ("airliners", "business", "light", "heli") if fo[g]})
         if not self.settings.is_on():
             self.weather.set_interval(OFF_POLL_S)
             self.adsb.set_interval(OFF_POLL_S)

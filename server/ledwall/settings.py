@@ -21,16 +21,19 @@ WIDGETS = {
     "timeline": ("Timeline 24 h (rain !)", "weather"),
     "nownext": ("Now + next 15 h", "weather"),
     "rain": ("Rain outlook 48 h", "weather"),
+    "radar": ("Rain radar map", "radar"),
 }
 SOURCES = {
     # name -> (label, min seconds, max seconds); minimums keep us polite to the APIs
     "weather": ("Weather (MeteoSwiss)", 60, 86400),
     "flights": ("Flights (adsb.lol)", 5, 3600),
+    "radar": ("Radar (MeteoSwiss)", 120, 3600),
 }
 SECONDS_RANGE = (2, 3600)
 # per-widget options: widget -> key -> (label, unit, allowed values, default)
 OPTIONS = {
     "timeline": {"hours": ("Timeline: time horizon", "h", [9, 12, 15, 18, 21, 24, 30, 36, 42, 48], 24)},
+    "radar": {"area": ("Radar: map area", "", ["Lake Geneva", "Romandie", "Switzerland"], "Lake Geneva")},
     "flights": {
         "radius_km": ("Flights: search radius", "km", [10, 15, 25, 40, 60, 100, 150], 40),
         # aircraft groups (airlines.aircraft_group); an unticked group is ignored entirely
@@ -55,7 +58,7 @@ def defaults(cfg: dict) -> dict:
         "single": "weather",
         "flight_alerts": True,
         "widgets": widgets,
-        "refresh": {"weather": 600, "flights": int(cfg["flights"]["poll_s"])},
+        "refresh": {"weather": 600, "flights": int(cfg["flights"]["poll_s"]), "radar": 300},
         # panel only lights up during these hours (Mon-Sat 08:00-19:00)
         "hours": {"enabled": True, "days": [0, 1, 2, 3, 4, 5], "start": "08:00", "end": "19:00"},
         # red ! on a 3 h slot when rain is at least this likely or this much is forecast

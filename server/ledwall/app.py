@@ -12,6 +12,8 @@ from .sources.adsb import Adsb
 from .sources.flightaware import FlightAware
 from .sources.logos import Logos
 from .sources.meteoswiss import MeteoSwiss
+from .sources.radar import Radar as RadarSource
+from .screens.radar import Radar
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / "config.toml"
 
@@ -30,6 +32,7 @@ class App:
         self.cfg = cfg
         loc, fl = cfg["location"], cfg["flights"]
         self.weather = MeteoSwiss(loc["plz"])
+        self.radar = RadarSource()
         self.settings = settings or Settings(cfg)
         self.adsb = Adsb(loc["lat"], loc["lon"],
                          self.settings.data["options"]["flights"]["radius_km"], fl["poll_s"],
@@ -39,7 +42,8 @@ class App:
         self.screens = {s.name: s for s in (
             Clock(self.weather), Weather(self.weather), Forecast(self.weather), self.flights,
             Timeline(self.weather, self.settings), NowNext(self.weather, self.settings),
-            RainFirst(self.weather, self.settings))}
+            RainFirst(self.weather, self.settings),
+            Radar(self.radar, self.settings, (loc["lat"], loc["lon"])))}
         self._current = None   # name of the widget on screen
         self._since = 0.0
         self.apply_settings()
@@ -55,7 +59,10 @@ class App:
         if not self.settings.is_on():
             self.weather.set_interval(OFF_POLL_S)
             self.adsb.set_interval(OFF_POLL_S)
+            self.radar.set_interval(OFF_POLL_S)
             return
+        radar_shown = "radar" in self.settings.active()
+        self.radar.set_interval(s["refresh"]["radar"] if radar_shown else OFF_POLL_S)
         self.weather.set_interval(s["refresh"]["weather"])
         self.adsb.set_interval(s["refresh"]["flights"] if flights_shown else IDLE_POLL_S)
 

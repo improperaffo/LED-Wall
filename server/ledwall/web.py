@@ -99,7 +99,8 @@ class Web:
             "showing": self.app._current,
             "panels": len(self.hub.clients),
             "brightness": self.hub.brightness,
-            "data_age_s": {"weather": age(self.app.weather.updated), "flights": age(self.app.adsb.updated)},
+            "data_age_s": {"weather": age(self.app.weather.updated), "flights": age(self.app.adsb.updated),
+                           "radar": age(self.app.radar.time)},
             "aircraft": len(self.app.adsb.aircraft),
             "flightaware": ({"used_today": fa.used_today, "daily_cap": fa.daily_cap}
                             if (fa := self.app.adsb.flightaware) else None),

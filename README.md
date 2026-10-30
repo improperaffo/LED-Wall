@@ -21,6 +21,7 @@ MeteoSwiss / adsb.lol ──HTTPS──> server (Python + Pillow, renders the fr
 | `flights` | Native 128×64. Nearest airborne aircraft: 16×16 airline logo, airline or operator (in its colour; for business jets, helicopters and light aircraft the type in words, e.g. "Airbus H145", or the category), route `GVA→SUF` (a stored route that contradicts the aircraft's position or heading is shown dimmed with an orange "?"; with no stored route, the callsign, type and registration). Callsigns are shown short, with the airline's IATA code (KLM591 → KL591); under a route the line reads callsign, type and registration, altitude in metres, ground speed, distance, track arrow. With an empty sky it shows "No aircraft" and the last plane seen | [adsb.lol](https://adsb.lol) + VRS route data |
 | `timeline` | MeteoSwiss-style strip from the current 3-hour slot, 24 h by default and settable from 9 to 48 h (beyond about 30 h one icon covers a group of slots, flagged if any is wet): eight full-width slots (hour, icon, red **!** when rain is likely; the first labelled "now") above a temperature curve with hourly rain bars. Status line at the bottom with clock, date and the minimum temperature | MeteoSwiss (3 h icons, rain probability, hourly rain) |
 | `nownext` | Big current icon and temperature, today's min/max; next five 3-hour slots with icon, temperature, rain-probability bar and % (red with **!** when likely) | MeteoSwiss |
+| `radar` | MeteoSwiss rain radar: the latest 5-minute rain-rate image over dim lake shores and borders, with home marked and the image time top left. Area: Lake Geneva (1 km per LED), Romandie (2 km) or Switzerland (3.5 km) | MeteoSwiss open data, RZC radar composite |
 | `rain` | Rain first: "Rain 18:00 · 4.2 mm" headline (or "Dry next 48 h"), 24 hourly rain bars with probability behind them, 3-hour icon strip | MeteoSwiss |
 
 `timeline`, `nownext` and `rain` draw at the native 128×64. The red **!** threshold (probability % and mm per 3 h) is set on the control page.
@@ -100,7 +101,7 @@ pio run -e ledwall   -t upload    # the real firmware, over USB
 
 ## Server (`server/`)
 
-The server needs Python 3.11 or newer and Pillow; there are no other dependencies.
+The server needs Python 3.11 or newer and Pillow. The radar widget also needs `h5py` (with numpy).
 
 ```sh
 cd server
@@ -150,6 +151,7 @@ These all cost debugging time, so they're recorded here:
 - **Aircraft**: `https://api.adsb.lol/v2/point/<lat>/<lon>/<nm>`, polled every 15 s. Routes come from `https://vrs-standing-data.adsb.lol/routes/<XX>/<CALLSIGN>.json`, falling back to `https://api.adsbdb.com/v0/callsign/<CALLSIGN>`, both cached for 6 h. A route is shown only if one of its legs is consistent with the aircraft's position and heading. Databases often store only one direction, so a leg is also accepted reversed when the aircraft is flying that way. The heading isn't checked right after departure or close to the destination.
 - **Routes, optional paid fallback**: [FlightAware AeroAPI](https://www.flightaware.com/aeroapi/), used only when both free sources have nothing, only for the airliner on screen, cached 6 h per callsign and capped at `flightaware_daily_cap` lookups per day (default 30). It also gives the marketed flight number (e.g. TO3851), which then replaces the callsign on the third line. It's enabled by putting `LEDWALL_FLIGHTAWARE_KEY=<key>` in `~/.config/ledwall/env` (mode 600; the systemd unit reads it). `/api/status` shows today's usage.
 - **Airline logos**: the square tail-fin icons from `https://images.kiwi.com/airlines/64/<IATA>.png`. They're downloaded once per airline, converted to 16×16 LED tiles (white background removed, dark logos brightened) and cached in `~/.cache/ledwall/logos/`. They're the airlines' trademarks, so they're not part of this repo.
+- **Rain radar**: MeteoSwiss open data, STAC collection [`ch.meteoschweiz.ogd-radar-precip`](https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-radar-precip): the newest `rzc…h5` image (rain rate, 1 km grid, every 5 min, about 4 min behind). Reading it needs `h5py` (`apt install python3-h5py`). The lake and border outlines in `server/data/basemap.json` are built from Natural Earth (public domain) by `server/tools/build_basemap.py`.
 - **Airlines**: `server/data/airlines.csv`, the [VRS standing-data](https://github.com/vradarserver/standing-data) airline list (CC0, ~5,900 airlines). A small hand-picked table in `ledwall/airlines.py` adds brand colours and short names for common airlines. Non-scheduled callsigns have no route, and the screen shows the callsign instead.
 
 ## Licences

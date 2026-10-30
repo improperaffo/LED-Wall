@@ -61,10 +61,9 @@ class Flights(Screen):
             return img, 5.0
         cs = a["callsign"] or a.get("r") or a["hex"].upper()
         name, color = describe(a)
-        scrolling = False
 
         # Row 1: airline name in its colour, track arrow on the right
-        scrolling |= text_fit(img, 0, 0, 54, name, font("5x7"), color, now, h=7)
+        text_fit(d, 0, 0, 54, name, ["5x7", "4x6", "tom-thumb"], color)
         if "track" in a:
             draw_arrow(d, 59.5, 3.5, a["track"])
 
@@ -84,7 +83,7 @@ class Flights(Screen):
         # differ from the flight numbers Flightradar24 & co show, the registration doesn't)
         small = font("4x6")
         row3 = " ".join(filter(None, [cs, a.get("t", "")] if legs else [a.get("t", ""), a.get("r", "")]))
-        scrolling |= text_fit(img, 0, 19, 64, row3, small, SUB, now, h=6)
+        text_fit(d, 0, 19, 64, row3, ["4x6", "tom-thumb"], SUB)
 
         # Row 4: altitude, distance, ground speed
         alt = int(a["alt_baro"])
@@ -92,4 +91,4 @@ class Flights(Screen):
         alt_s = f"{round(m, -2):.0f}m" if m >= 1000 else f"{round(m, -1):.0f}m"
         text(d, 0, 26, alt_s, small, DIM)
         text(d, 63, 26, f"{a['dist_km']:.1f}km", small, DIM, anchor="r")
-        return img, (0.05 if scrolling else 1.0)
+        return img, 1.0

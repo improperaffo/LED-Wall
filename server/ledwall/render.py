@@ -44,24 +44,16 @@ def text(d: ImageDraw.ImageDraw, x: int, y: int, s: str, f, fill, anchor: str = 
     return w
 
 
-def text_fit(img: Image.Image, x: int, y: int, w: int, s: str, f, fill, t: float,
-             speed: float = 18.0, h: int = 10) -> bool:
-    """Draw s in a w-wide box; scroll it if it doesn't fit. Returns True while scrolling."""
-    tw = text_width(s, f)
-    if tw <= w:
-        ImageDraw.Draw(img).text((x, y), s, font=f, fill=fill)
-        return False
-    gap = 12
-    period = tw + gap
-    pause = 1.5  # hold the start of the text before scrolling
-    phase = t % (period / speed + pause)
-    off = 0 if phase < pause else int((phase - pause) * speed)
-    strip = Image.new("RGB", (w, h))
-    sd = ImageDraw.Draw(strip)
-    sd.text((-off, 0), s, font=f, fill=fill)
-    sd.text((-off + period, 0), s, font=f, fill=fill)
-    img.paste(strip, (x, y))
-    return True
+def text_fit(d: ImageDraw.ImageDraw, x: int, y: int, w: int, s: str, fonts: list[str], fill) -> int:
+    """Draw s in a w-wide box without moving text: the first font in `fonts` it fits in,
+    else the last font, cut to the box (whole characters). Returns the width drawn."""
+    for name in fonts:
+        f = font(name)
+        if text_width(s, f) <= w:
+            return text(d, x, y, s, f, fill)
+    while s and text_width(s, f) > w:
+        s = s[:-1]
+    return text(d, x, y, s.rstrip(), f, fill)
 
 
 def to_rgb565(img: Image.Image, size: tuple[int, int] = (W, H)) -> bytes:

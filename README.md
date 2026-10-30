@@ -37,7 +37,7 @@ Rendered with the LED look by `server/screenshots.py`. The timeline uses live Me
 |---|---|
 | ![Timeline](docs/screenshots/timeline.png)<br>`timeline`: 24 h strip, red **!** where rain is likely | ![Clock](docs/screenshots/clock.png)<br>`clock` |
 | ![Flights](docs/screenshots/flights.png)<br>`flights`: route checked against the aircraft | ![Flights, unsure route](docs/screenshots/flights-unsure.png)<br>`flights`: stored route contradicts the aircraft, shown dimmed with "?" |
-| ![Flights, helicopter](docs/screenshots/flights-heli.png)<br>`flights`: helicopter, operator by callsign | |
+| ![Flights, helicopter](docs/screenshots/flights-heli.png)<br>`flights`: helicopter, operator by callsign | ![Tracked flight](docs/screenshots/tracker.png)<br>`tracker`: one chosen flight, progress, km left and ETA |
 
 ## Control page
 

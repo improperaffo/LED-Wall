@@ -45,6 +45,11 @@ FLIGHTS = {
 }
 
 
+TRACKED = {"hex": "440f3c", "callsign": "EJU82VC", "t": "A320", "r": "OE-IVD", "alt_baro": 36000, "track": 312.0,
+           "gs": 472, "lat": 46.7, "lon": 6.3, "group": "airliners", "leg": ("JMK", "ORY"),
+           "total_km": 2236, "left_km": 377, "home_km": 21}
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     cfg = load_config()
@@ -63,6 +68,9 @@ def main():
             app.adsb.aircraft, app.adsb.updated = [ac], now
             led_preview(app.screens["flights"].render(now)[0], scale=5).save(OUT / f"{name}.png")
             print(OUT / f"{name}.png")
+        app.tracker.target, app.tracker.aircraft = "EC82VC", TRACKED
+        led_preview(app.screens["tracker"].render(now)[0], scale=5).save(OUT / "tracker.png")
+        print(OUT / "tracker.png")
 
 
 if __name__ == "__main__":

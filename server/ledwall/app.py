@@ -28,9 +28,10 @@ class App:
         self.cfg = cfg
         loc, fl = cfg["location"], cfg["flights"]
         self.weather = MeteoSwiss(loc["plz"])
-        self.adsb = Adsb(loc["lat"], loc["lon"], fl["radius_km"], fl["poll_s"])
-        self.flights = Flights(self.adsb, fl["alert_km"], fl["alert_max_alt_ft"])
         self.settings = settings or Settings(cfg)
+        self.adsb = Adsb(loc["lat"], loc["lon"],
+                         self.settings.data["options"]["flights"]["radius_km"], fl["poll_s"])
+        self.flights = Flights(self.adsb, fl["alert_km"], fl["alert_max_alt_ft"])
         self.screens = {s.name: s for s in (
             Clock(self.weather), Weather(self.weather), Forecast(self.weather), self.flights,
             Timeline(self.weather, self.settings), NowNext(self.weather, self.settings),
@@ -42,6 +43,7 @@ class App:
     def apply_settings(self):
         """Push poll intervals to the data sources after a settings change."""
         s = self.settings.data
+        self.adsb.set_radius(s["options"]["flights"]["radius_km"])
         if not self.settings.is_on():
             self.weather.set_interval(OFF_POLL_S)
             self.adsb.set_interval(OFF_POLL_S)

@@ -22,6 +22,11 @@ class Adsb(Poller):
         self.updated = 0.0
         self._routes: dict[str, tuple[float, dict | None]] = {}
 
+    def set_radius(self, km: float):
+        if km != self.radius_km:
+            self.radius_km = km
+            self._wake.set()  # re-query now with the new radius
+
     def route(self, callsign: str) -> dict | None:
         """Cached route lookup; None if unknown (non-scheduled callsign)."""
         hit = self._routes.get(callsign)

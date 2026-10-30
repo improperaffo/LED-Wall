@@ -23,7 +23,6 @@ night_end = "07:00"
 screens = [["clock", 10], ["weather", 15], ["forecast", 10], ["flights", 15]]
 
 [flights]
-radius_km = 15        # aircraft considered at all
 poll_s = 15
 alert_km = 6          # a new aircraft this close and low interrupts the rotation
 alert_max_alt_ft = 15000

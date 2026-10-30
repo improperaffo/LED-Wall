@@ -33,7 +33,7 @@ The server serves a control page on port 8080, e.g. `http://pigate.local:8080`. 
 - switch between **Rotate** (cycle through the ticked widgets in order, each for its own number of seconds) and **Single widget** (one widget stays up);
 - reorder the widgets, use **Show now**, and watch a live preview of the panel;
 - set how often each data source is re-fetched (weather at least every 60 s, flights at least every 5 s). A source no visible widget uses drops to polling every 5 min;
-- set widget options, such as the Timeline's time horizon (9–48 h);
+- set widget options: the Timeline's time horizon (9–48 h) and the flight search radius (10–150 km, default 40 km);
 - turn flight alerts on or off;
 - set **operating hours**: the days and the window during which the panel lights up (default Mon–Sat 08:00–19:00). Outside them the panel is dark and data is fetched only every 30 min. A window may run past midnight.
 
@@ -103,7 +103,7 @@ python3 preview.py flights --fake-flight
 - the panel size and the ports (panel 7777, control page 8080);
 - the location (postcode for MeteoSwiss, lat/lon for flights);
 - the brightness schedule (day/night, 0–255);
-- the flight radius and alert rules;
+- the flight alert rules (how close and low an aircraft must be to interrupt the rotation);
 - the first-run defaults for the rotation. After the first run, the control page's settings apply.
 
 ### Adding a screen

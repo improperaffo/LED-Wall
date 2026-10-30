@@ -31,6 +31,7 @@ SECONDS_RANGE = (2, 3600)
 # per-widget options: widget -> key -> (label, unit, allowed values, default)
 OPTIONS = {
     "timeline": {"hours": ("Timeline: time horizon", "h", [9, 12, 15, 18, 21, 24, 30, 36, 42, 48], 24)},
+    "flights": {"radius_km": ("Flights: search radius", "km", [10, 15, 25, 40, 60, 100, 150], 40)},
 }
 DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")

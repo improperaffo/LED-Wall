@@ -1,7 +1,7 @@
 import math
 import time
 
-from ..airlines import airline_iata, describe, short_type
+from ..airlines import airline_iata, describe, short_callsign, short_type
 from ..render import canvas, font, text, text_fit
 from . import Screen
 
@@ -52,7 +52,7 @@ class Flights(Screen):
         if a is None:
             self._empty(d, now)
             return img, 5.0
-        cs = a["callsign"] or a.get("r") or a["hex"].upper()
+        cs = short_callsign(a["callsign"]) if a["callsign"] else (a.get("r") or a["hex"].upper())
         name, color = describe(a)
 
         # Top: logo (if the airline has one), name in its colour, direction arrow (north = up)
@@ -83,11 +83,14 @@ class Flights(Screen):
         else:
             text_fit(d, 0, 19, 128, cs, ["9x18B", "6x10"], LINE)
 
-        # Below: with a route: callsign + type; without: type + registration (callsigns often
-        # differ from the flight numbers Flightradar24 & co show, the registration doesn't)
+        # Below: with a route: short callsign + type + registration; without (the callsign is
+        # the big line): type + registration. The registration is what matches Flightradar24.
         t = short_type(a.get("t"))
         ident = a.get("flight_no") or cs  # FlightAware gives the marketed flight number
-        row3 = " ".join(filter(None, [ident, t] if legs else [t, a.get("r", "")]))
+        reg = a.get("r", "")
+        if reg.replace("-", "") == ident:  # private flights use the registration as callsign
+            reg = ""
+        row3 = " ".join(filter(None, [ident, t, reg] if legs else [t, a.get("r", "")]))
         text_fit(d, 0, 40, 128, row3, ["6x10", "5x7", "4x6"], SUB)
 
         # Bottom: altitude, ground speed, distance

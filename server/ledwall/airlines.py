@@ -75,6 +75,16 @@ VRS_AIRLINES = {r["ICAO"]: r["Name"] for r in _VRS if r.get("Name")}
 VRS_IATA = {r["ICAO"]: r["IATA"] for r in _VRS if r.get("IATA")}
 
 
+def short_callsign(callsign: str) -> str:
+    """KLM591 -> KL591 (airline ICAO prefix replaced by its 2-character IATA code). For numeric
+    callsigns this is usually the published flight number; alphanumeric ones (EWG3HP -> EW3HP)
+    are just shorter. Anything else is returned unchanged."""
+    iata = airline_iata(callsign)
+    if iata and len(iata) == 2 and iata.isalnum():
+        return iata + callsign[3:]
+    return callsign
+
+
 def airline_iata(callsign: str) -> str | None:
     """IATA code of the airline behind an airline-style callsign (for its logo)."""
     if len(callsign) > 3 and callsign[:3].isalpha() and callsign[3].isdigit():

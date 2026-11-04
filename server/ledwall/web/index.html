@@ -233,7 +233,8 @@ function render() {
         `<option value="${c}">${c} ${o.unit}</option>`).join("")}</select>`;
     const sel = row.querySelector("select");
     sel.value = S.options[o.widget][o.key];
-    sel.onchange = () => { S.options[o.widget][o.key] = Number(sel.value); changed(); };
+    // keep the choice's own type: numbers for numeric choices, text otherwise ("2 h", "Romandie")
+    sel.onchange = () => { S.options[o.widget][o.key] = o.choices.find((c) => String(c) === sel.value); changed(); };
     return row;
   }));
 

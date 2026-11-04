@@ -77,14 +77,16 @@ class Timeline(_Outlook):
 
         # hourly rain: chance as a dim bar (100 % = full chart), expected amount bright in
         # front (4 mm/h = full); MeteoSwiss often gives a real chance of showers with 0.0 mm
-        # expected, which would otherwise leave the chart empty under a red '!'. Plus midnight.
+        # expected, which would otherwise leave the chart empty under a red '!'. The chance
+        # is only published per 3 h: each hour shows its slot's value (no smoothing into dry
+        # slots), drawn as thin hourly bars like the amounts.
         gap = 1 if px >= 4 else 0
         full = base - top - 8  # below the max label
         for i, h in enumerate(self.w.hours_from(t0, n * 3)):
             x0, x1 = round(i * px), round((i + 1) * px) - 1
             if h["prob"] >= 5:
                 bar = max(1, round(h["prob"] / 100 * full))
-                d.rectangle((x0, base - bar + 1, x1, base), fill=CHANCE)
+                d.rectangle((x0 + gap, base - bar + 1, max(x0 + gap, x1 - gap), base), fill=CHANCE)
             if h["mm"] > 0.05:
                 bar = max(1, round(min(h["mm"], 4) / 4 * full))
                 d.rectangle((x0 + gap, base - bar + 1, max(x0 + gap, x1 - gap), base), fill=RAIN)

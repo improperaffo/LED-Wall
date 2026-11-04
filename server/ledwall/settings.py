@@ -38,7 +38,7 @@ OPTIONS = {
                                    [True, False], True)},
     "tracker": {"flight": ("Track: flight no., callsign or registration", "", "text", "")},
     "radar": {"area": ("Radar: map area", "", ["Lake Geneva", "Romandie", "Switzerland"], "Lake Geneva"),
-              "loop": ("Radar: animation", "", ["off", "30 min", "1 h", "2 h"], "1 h")},
+              "ahead": ("Radar: forecast shown", "", ["1 h", "2 h", "3 h", "6 h"], "2 h")},
     "flights": {
         "radius_km": ("Flights: search radius", "km", [10, 15, 25, 40, 60, 100, 150], 40),
         # aircraft groups (airlines.aircraft_group); an unticked group is ignored entirely

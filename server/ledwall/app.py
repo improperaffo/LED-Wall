@@ -71,7 +71,7 @@ class App:
         self.tracker.set_target(s["options"]["tracker"]["flight"])
         tracker_shown = "tracker" in self.settings.active() and bool(self.tracker.target)
         self.tracker.set_interval(s["refresh"]["flights"] if tracker_shown else OFF_POLL_S)
-        self.radar.set_loop({"off": 0, "30 min": 30, "1 h": 60, "2 h": 120}[s["options"]["radar"]["loop"]])
+        self.radar.set_horizon(int(s["options"]["radar"]["ahead"].split()[0]))
         radar_shown = "radar" in self.settings.active() or (
             "timeline" in self.settings.active() and s["options"]["timeline"]["radar_on_rain"])
         self.radar.set_interval(s["refresh"]["radar"] if radar_shown else OFF_POLL_S)

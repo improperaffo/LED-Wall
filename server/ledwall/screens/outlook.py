@@ -17,7 +17,6 @@ SIZE = (128, 64)
 RED = (255, 40, 30)
 RAIN = (40, 110, 255)
 RAIN_DIM = (12, 30, 80)
-CHANCE = (20, 45, 110)  # chance-of-rain backdrop in the timeline (dim but visible on the panel)
 LABEL = (150, 150, 150)
 DAY = (255, 200, 0)
 DIM = (60, 60, 60)
@@ -75,18 +74,12 @@ class Timeline(_Outlook):
         px = 128 / (n * 3)  # per hour
         top, base = 20, 55  # chart rows; 57-63 are the status line (clock, date, min temp)
 
-        # hourly rain: chance as a dim bar (100 % = full chart), expected amount bright in
-        # front (4 mm/h = full); MeteoSwiss often gives a real chance of showers with 0.0 mm
-        # expected, which would otherwise leave the chart empty under a red '!'. The chance
-        # is only published per 3 h: each hour shows its slot's value (no smoothing into dry
-        # slots), drawn as thin hourly bars like the amounts.
+        # hourly rain bars: expected amount (4 mm/h fills the chart, below the max label),
+        # plus midnight markers
         gap = 1 if px >= 4 else 0
-        full = base - top - 8  # below the max label
+        full = base - top - 8
         for i, h in enumerate(self.w.hours_from(t0, n * 3)):
             x0, x1 = round(i * px), round((i + 1) * px) - 1
-            if h["prob"] >= 5:
-                bar = max(1, round(h["prob"] / 100 * full))
-                d.rectangle((x0 + gap, base - bar + 1, max(x0 + gap, x1 - gap), base), fill=CHANCE)
             if h["mm"] > 0.05:
                 bar = max(1, round(min(h["mm"], 4) / 4 * full))
                 d.rectangle((x0 + gap, base - bar + 1, max(x0 + gap, x1 - gap), base), fill=RAIN)

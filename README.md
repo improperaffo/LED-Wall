@@ -33,11 +33,12 @@ A screen without data is skipped. A new aircraft that comes close and low can in
 
 ## Screenshots
 
-Rendered with the LED look by `server/screenshots.py`. The timeline uses live MeteoSwiss data with a simulated shower, so the rain warnings appear. The flights examples omit airline logos, which the panel shows to the left of the airline name.
+Rendered with the LED look by `server/screenshots.py`. The timeline uses live MeteoSwiss data with a simulated shower, so the rain warnings appear. The radar shows live MeteoSwiss data (Source: MeteoSwiss). The flights examples omit airline logos, which the panel shows to the left of the airline name.
 
 | | |
 |---|---|
 | ![Timeline](docs/screenshots/timeline.png)<br>`timeline`: 24 h strip, red **!** where rain is likely | ![Clock](docs/screenshots/clock.png)<br>`clock` |
+| ![Rain radar](docs/screenshots/radar.png)<br>`radar`: MeteoSwiss radar and forecast around Lake Geneva (frame time top right, amber = forecast) | |
 | ![Flights](docs/screenshots/flights.png)<br>`flights`: route checked against the aircraft | ![Flights, unsure route](docs/screenshots/flights-unsure.png)<br>`flights`: stored route contradicts the aircraft, shown dimmed with "?" |
 | ![Flights, helicopter](docs/screenshots/flights-heli.png)<br>`flights`: helicopter, operator by callsign | ![Tracked flight](docs/screenshots/tracker.png)<br>`tracker`: one chosen flight, progress, km left and ETA |
 

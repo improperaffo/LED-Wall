@@ -68,6 +68,20 @@ def main():
             app.adsb.aircraft, app.adsb.updated = [ac], now
             led_preview(app.screens["flights"].render(now)[0], scale=5).save(OUT / f"{name}.png")
             print(OUT / f"{name}.png")
+        # radar: live MeteoSwiss frames; pick the one with the most rain on the map
+        app.radar.refresh()
+        radar = app.screens["radar"]
+        radar.on_show(now)
+        best = None
+        for k in range(len(app.radar.frames)):
+            pos = 0 if k == 0 else radar.HOLD_S + (k - 1) * radar.FRAME_S + 0.01
+            img, _ = radar.render(now + pos)
+            b = img.crop((0, 9, 128, 63)).tobytes()
+            lit = sum(1 for k in range(0, len(b), 3) if max(b[k:k + 3]) > 100)
+            if best is None or lit > best[0]:
+                best = (lit, img)
+        led_preview(best[1], scale=5).save(OUT / "radar.png")
+        print(OUT / "radar.png")
         app.tracker.target, app.tracker.aircraft = "EC82VC", TRACKED
         led_preview(app.screens["tracker"].render(now)[0], scale=5).save(OUT / "tracker.png")
         print(OUT / "tracker.png")

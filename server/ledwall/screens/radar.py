@@ -125,13 +125,14 @@ class Radar(Screen):
         img = self._frame(t, rate, area).copy()
         d = ImageDraw.Draw(img)
         f = font("5x7")
-        # image time (white on the newest frame, amber while showing the past) and the time now
+        # current time top left; image time top right (white on the newest frame, amber
+        # while showing the past)
+        nowl = time.strftime("%H:%M", time.localtime(now))
+        d.rectangle((0, 0, len(nowl) * 5 + 1, 8), fill=(0, 0, 0))
+        text(d, 1, 1, nowl, f, (120, 120, 120))
         label = time.strftime("%H:%M", time.localtime(t))
-        d.rectangle((0, 0, len(label) * 5 + 1, 8), fill=(0, 0, 0))
-        text(d, 1, 1, label, f, (230, 230, 230) if i == n - 1 else (255, 170, 0))
-        nowl = "now " + time.strftime("%H:%M", time.localtime(now))
-        d.rectangle((127 - len(nowl) * 5 - 1, 0, 127, 8), fill=(0, 0, 0))
-        text(d, 127, 1, nowl, f, (120, 120, 120), anchor="r")
+        d.rectangle((127 - len(label) * 5 - 1, 0, 127, 8), fill=(0, 0, 0))
+        text(d, 127, 1, label, f, (230, 230, 230) if i == n - 1 else (255, 170, 0), anchor="r")
         if n > 1:  # loop position: one dot per frame along the bottom edge
             for k in range(n):
                 x = round(2 + k * 123 / (n - 1))

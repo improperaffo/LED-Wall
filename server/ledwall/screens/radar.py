@@ -1,6 +1,5 @@
 """MeteoSwiss rain radar around home: latest 5-minute rain rate over lake shores and borders."""
 import json
-import math
 import time
 from pathlib import Path
 
@@ -43,7 +42,7 @@ class Radar(Screen):
         self.r, self.settings = radar, settings
         self.home = lv95(home[1], home[0])  # (lat, lon) -> LV95
         self._base = json.loads(BASEMAP.read_text())
-        self._cache: tuple | None = None   # (key, image)
+        self._frames: dict[tuple, Image.Image] = {}   # (image time, area) -> drawn map
 
     def ready(self):
         return self.r.ok
@@ -52,7 +51,17 @@ class Radar(Screen):
         cx, cy, km = AREAS[area]
         return (64 + (x - cx) / (km * 1000), 32 - (y - cy) / (km * 1000))
 
-    def _draw(self, area: str) -> Image.Image:
+    @staticmethod
+    def _edges(raw, limit: int):
+        """LED edges in grid cells: integers, strictly increasing, inside the grid."""
+        import numpy as np
+        e = np.clip(raw.astype(int), 0, limit)
+        for k in range(1, len(e)):
+            if e[k] <= e[k - 1]:
+                e[k] = e[k - 1] + 1
+        return np.minimum(e, limit)
+
+    def _draw(self, area: str, rate) -> Image.Image:
         import numpy as np
         img = Image.new("RGB", SIZE)
         d = ImageDraw.Draw(img)
@@ -61,42 +70,70 @@ class Radar(Screen):
                 pts = [self._xy(area, x, y) for x, y in line]
                 if any(-5 < px < 133 and -5 < py < 69 for px, py in pts):
                     d.line(pts, fill=col)
-        # rain: each LED takes the heaviest radar cell it covers, so small showers survive zooming out
+        # rain: each LED takes the heaviest radar cell it covers, so small showers survive
+        # zooming out (vectorised: block maxima with reduceat over the LED edges in grid cells)
         cx, cy, km = AREAS[area]
-        rate, px = self.r.rate, img.load()
-        rows, cols = rate.shape
-        for j in range(64):
-            y_top = cy + (32 - j) * km * 1000
-            r0 = int((Y_TOP - y_top) // CELL)
-            r1 = max(r0 + 1, int(math.ceil((Y_TOP - (y_top - km * 1000)) / CELL)))
-            if r1 <= 0 or r0 >= rows:
-                continue
-            for i in range(128):
-                x_left = cx + (i - 64) * km * 1000
-                c0 = int((x_left - X0) // CELL)
-                c1 = max(c0 + 1, int(math.ceil((x_left + km * 1000 - X0) / CELL)))
-                if c1 <= 0 or c0 >= cols:
-                    continue
-                block = rate[max(r0, 0):r1, max(c0, 0):c1]
-                if block.size and not np.all(np.isnan(block)):
-                    c = colour(float(np.nanmax(block)))
-                    if c:
-                        px[i, j] = c
+        step = km * 1000
+        rows = self._edges(np.floor((Y_TOP - (cy + (32 - np.arange(65)) * step)) / CELL), rate.shape[0])
+        cols = self._edges(np.floor((cx + (np.arange(129) - 64) * step - X0) / CELL), rate.shape[1])
+        block = np.nan_to_num(rate[rows[0]:rows[-1], cols[0]:cols[-1]], nan=-1.0)
+        m = np.maximum.reduceat(block, rows[:-1] - rows[0], axis=0)
+        m = np.maximum.reduceat(m, cols[:-1] - cols[0], axis=1)
+        level = np.digitize(m, [t for t, _ in SCALE])  # 0 = below 0.1 mm/h
+        palette = np.array([(0, 0, 0)] + [c for _, c in SCALE], dtype=np.uint8)
+        pixels = np.array(img)
+        wet = level > 0
+        pixels[wet] = palette[level[wet]]
+        img = Image.fromarray(pixels)
+        d = ImageDraw.Draw(img)
         hx, hy = self._xy(area, *self.home)  # home: white dot with a dark ring
         hx, hy = round(hx), round(hy)
         d.rectangle((hx - 1, hy - 1, hx + 1, hy + 1), fill=(0, 0, 0))
         d.point((hx, hy), fill=HOME)
         return img
 
+    FRAME_S, HOLD_S = 0.5, 2.0  # animation: per frame, and on the newest frame
+
+    def on_show(self, now):
+        self._t0 = now
+
+    def loop_seconds(self) -> float:
+        n = len(self.r.frames)
+        return (n - 1) * self.FRAME_S + self.HOLD_S if n > 1 else self.HOLD_S
+
+    def _frame(self, t: float, rate, area: str) -> Image.Image:
+        key = (t, area)
+        if key not in self._frames:
+            self._frames[key] = self._draw(area, rate)
+            live = {(ft, area) for ft, _ in self.r.sequence()}
+            for k in list(self._frames):  # forget frames that left the loop
+                if k not in live:
+                    del self._frames[k]
+        return self._frames[key]
+
     def render(self, now):
         area = self.settings.data["options"]["radar"]["area"]
-        key = (self.r.time, area)
-        if not self._cache or self._cache[0] != key:
-            self._cache = (key, self._draw(area))
-        img = self._cache[1].copy()
+        seq = self.r.sequence()
+        n = len(seq)
+        if n > 1:  # loop: oldest -> newest, then hold the newest
+            pos = (now - getattr(self, "_t0", 0.0)) % self.loop_seconds()
+            i = min(int(pos / self.FRAME_S), n - 1)
+            wait = self.FRAME_S - pos % self.FRAME_S if i < n - 1 else self.loop_seconds() - pos
+        else:
+            i, wait = n - 1, 30.0
+        t, rate = seq[i]
+        img = self._frame(t, rate, area).copy()
         d = ImageDraw.Draw(img)
-        label = time.strftime("%H:%M", time.localtime(self.r.time))
         f = font("5x7")
+        # image time (white on the newest frame, amber while showing the past) and the time now
+        label = time.strftime("%H:%M", time.localtime(t))
         d.rectangle((0, 0, len(label) * 5 + 1, 8), fill=(0, 0, 0))
-        text(d, 1, 1, label, f, (200, 200, 200))
-        return img, 30.0
+        text(d, 1, 1, label, f, (230, 230, 230) if i == n - 1 else (255, 170, 0))
+        nowl = "now " + time.strftime("%H:%M", time.localtime(now))
+        d.rectangle((127 - len(nowl) * 5 - 1, 0, 127, 8), fill=(0, 0, 0))
+        text(d, 127, 1, nowl, f, (120, 120, 120), anchor="r")
+        if n > 1:  # loop position: one dot per frame along the bottom edge
+            for k in range(n):
+                x = round(2 + k * 123 / (n - 1))
+                img.putpixel((x, 63), (230, 230, 230) if k == i else (60, 60, 60))
+        return img, max(0.05, wait)

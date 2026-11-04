@@ -48,7 +48,9 @@ class App:
             RainFirst(self.weather, self.settings),
             Radar(self.radar, self.settings, (loc["lat"], loc["lon"])),
             Tracker(self.tracker))}
-        self._current = None   # name of the widget on screen
+        self._current = None   # name of the scheduled widget
+        self.showing = None    # name of the widget actually on screen (rain alternation)
+        self._alt = None       # (phase, since) of the timeline/radar alternation
         self._since = 0.0
         self.apply_settings()
 
@@ -69,7 +71,9 @@ class App:
         self.tracker.set_target(s["options"]["tracker"]["flight"])
         tracker_shown = "tracker" in self.settings.active() and bool(self.tracker.target)
         self.tracker.set_interval(s["refresh"]["flights"] if tracker_shown else OFF_POLL_S)
-        radar_shown = "radar" in self.settings.active()
+        self.radar.set_loop({"off": 0, "30 min": 30, "1 h": 60, "2 h": 120}[s["options"]["radar"]["loop"]])
+        radar_shown = "radar" in self.settings.active() or (
+            "timeline" in self.settings.active() and s["options"]["timeline"]["radar_on_rain"])
         self.radar.set_interval(s["refresh"]["radar"] if radar_shown else OFF_POLL_S)
         self.weather.set_interval(s["refresh"]["weather"])
         self.adsb.set_interval(s["refresh"]["flights"] if flights_shown else IDLE_POLL_S)
@@ -77,7 +81,44 @@ class App:
     def show_now(self, name: str):
         self._current, self._since = name, time.time()
 
+    ALT_TIMELINE_S = 15  # rain alternation: timeline this long, then the radar loop twice
+
     def current(self, now: float):
+        """Widget on the panel now: the scheduled one, except that a timeline alternates with
+        the radar loop while rain is due (option); notifies widgets when they come on screen."""
+        scr = self._scheduled(now)
+        if scr.name == "timeline":
+            scr = self._rain_alternation(scr, now)
+        else:
+            self._alt = None
+        if scr.name != self.showing:
+            self.showing = scr.name
+            scr.on_show(now)
+        return scr
+
+    def rain_soon(self, now: float, hours: float = 4) -> bool:
+        """Any 3 h slot starting within `hours` that the rain-warning rule flags."""
+        if not self.weather.ok:
+            return False
+        r = self.settings.data["rain"]
+        return any(s["t"] < now + hours * 3600 and (s["prob"] >= r["prob"] or s["mm"] >= r["mm"])
+                   for s in self.weather.slots(3, now))
+
+    def _rain_alternation(self, timeline, now: float):
+        radar = self.screens["radar"]
+        if not (self.settings.data["options"]["timeline"]["radar_on_rain"] and radar.ready()
+                and self.rain_soon(now)):
+            self._alt = None
+            return timeline
+        phase, since = self._alt or ("timeline", now)
+        if phase == "timeline" and now - since >= self.ALT_TIMELINE_S:
+            phase, since = "radar", now
+        elif phase == "radar" and now - since >= 2 * radar.loop_seconds():
+            phase, since = "timeline", now
+        self._alt = (phase, since)
+        return radar if phase == "radar" else timeline
+
+    def _scheduled(self, now: float):
         """Widget to show now: single mode, or rotate by dwell time, skipping widgets without
         data; a new close aircraft interrupts the rotation if flight alerts are on."""
         s = self.settings.data

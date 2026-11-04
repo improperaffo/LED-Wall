@@ -22,10 +22,12 @@ MeteoSwiss / adsb.lol ──HTTPS──> server (Python + Pillow, renders the fr
 | `timeline` | MeteoSwiss-style strip from the current 3-hour slot, 24 h by default and settable from 9 to 48 h (beyond about 30 h one icon covers a group of slots, flagged if any is wet): eight full-width slots (hour, icon, red **!** when rain is likely; the first labelled "now") above a temperature curve with hourly rain-amount bars (mm per hour). Status line at the bottom with clock, date and the minimum temperature | MeteoSwiss (3 h icons, rain probability, hourly rain) |
 | `nownext` | Big current icon and temperature, today's min/max; next five 3-hour slots with icon, temperature, rain-probability bar and % (red with **!** when likely) | MeteoSwiss |
 | `tracker` | Follows one chosen aircraft anywhere: logo, airline and flight, route (same plausibility check as `flights`), progress bar from origin to destination with km left and ETA, altitude, speed, distance from home. Enter a flight number (KL591), callsign (KLM591), registration (PH-EXA) or ICAO hex on the control page; a flight number is mapped to the airline's callsign via the airline list. Shows "not in the air" when it isn't flying | adsb.lol (`/v2/callsign`, `/v2/reg`, `/v2/hex`) |
-| `radar` | MeteoSwiss rain radar: the latest 5-minute rain-rate image over dim lake shores and borders, with home marked and the image time top left. Area: Lake Geneva (1 km per LED), Romandie (2 km) or Switzerland (3.5 km) | MeteoSwiss open data, RZC radar composite |
+| `radar` | MeteoSwiss rain radar, animated: the last hour of 5-minute rain-rate images (option: off / 30 min / 1 h / 2 h) over dim lake shores and borders, with home marked. Top left: the time of the image shown (amber for past images, white for the newest); top right: the current time; dots along the bottom: position in the loop. Area: Lake Geneva (1 km per LED), Romandie (2 km) or Switzerland (3.5 km) | MeteoSwiss open data, RZC radar composite |
 | `rain` | Rain first: "Rain 18:00 · 4.2 mm" headline (or "Dry next 48 h"), 24 hourly rain bars with probability behind them, 3-hour icon strip | MeteoSwiss |
 
 `timeline`, `nownext` and `rain` draw at the native 128×64. The red **!** threshold (probability % and mm per 3 h) is set on the control page.
+
+When the timeline is on screen and the rain-warning rule flags a 3-hour slot starting within the next 4 hours, it alternates with the animated radar: 15 s timeline, then two radar loops (option, on by default). With no rain due, the timeline stays static.
 
 A screen without data is skipped. A new aircraft that comes close and low can interrupt the rotation.
 
@@ -45,7 +47,7 @@ The server serves a control page on port 8080, e.g. `http://pigate.local:8080`. 
 - switch between **Rotate** (cycle through the ticked widgets in order, each for its own number of seconds) and **Single widget** (one widget stays up);
 - reorder the widgets, use **Show now**, and watch a live preview of the panel;
 - set how often each data source is re-fetched (weather at least every 60 s, flights at least every 5 s). A source no visible widget uses drops to polling every 5 min;
-- set widget options: the flight to track, the radar map area, the Timeline's time horizon (9–48 h), the flight search radius (10–150 km, default 40 km), and which aircraft groups the flights widget shows (airliners, business & private, light aircraft & gliders, helicopters). Unticked groups are ignored entirely, including for alerts;
+- set widget options: the flight to track, the radar map area and animation length, whether the timeline alternates with the radar when rain is due, the Timeline's time horizon (9–48 h), the flight search radius (10–150 km, default 40 km), and which aircraft groups the flights widget shows (airliners, business & private, light aircraft & gliders, helicopters). Unticked groups are ignored entirely, including for alerts;
 - turn flight alerts on or off;
 - set **operating hours**: the days and the window during which the panel lights up (default Mon–Sat 08:00–19:00). Outside them the panel is dark and data is fetched only every 30 min. A window may run past midnight.
 

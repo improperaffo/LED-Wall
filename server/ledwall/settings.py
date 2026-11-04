@@ -33,9 +33,12 @@ SOURCES = {
 SECONDS_RANGE = (2, 3600)
 # per-widget options: widget -> key -> (label, unit, allowed values, default)
 OPTIONS = {
-    "timeline": {"hours": ("Timeline: time horizon", "h", [9, 12, 15, 18, 21, 24, 30, 36, 42, 48], 24)},
+    "timeline": {"hours": ("Timeline: time horizon", "h", [9, 12, 15, 18, 21, 24, 30, 36, 42, 48], 24),
+                 "radar_on_rain": ("Timeline: alternate with radar when rain is due within 4 h", "",
+                                   [True, False], True)},
     "tracker": {"flight": ("Track: flight no., callsign or registration", "", "text", "")},
-    "radar": {"area": ("Radar: map area", "", ["Lake Geneva", "Romandie", "Switzerland"], "Lake Geneva")},
+    "radar": {"area": ("Radar: map area", "", ["Lake Geneva", "Romandie", "Switzerland"], "Lake Geneva"),
+              "loop": ("Radar: animation", "", ["off", "30 min", "1 h", "2 h"], "1 h")},
     "flights": {
         "radius_km": ("Flights: search radius", "km", [10, 15, 25, 40, 60, 100, 150], 40),
         # aircraft groups (airlines.aircraft_group); an unticked group is ignored entirely

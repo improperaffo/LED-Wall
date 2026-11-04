@@ -96,7 +96,7 @@ class Web:
         age = lambda t: round(now - t) if t else None  # noqa: E731
         return {
             "on": self.app.settings.is_on(now),
-            "showing": self.app._current,
+            "showing": self.app.showing,
             "panels": len(self.hub.clients),
             "brightness": self.hub.brightness,
             "data_age_s": {"weather": age(self.app.weather.updated), "flights": age(self.app.adsb.updated),

@@ -9,5 +9,8 @@ class Screen:
     def ready(self) -> bool:
         return True
 
+    def on_show(self, now: float):
+        """Called when the widget comes on screen (e.g. to restart an animation)."""
+
     def render(self, now: float) -> tuple[Image.Image, float]:
         raise NotImplementedError

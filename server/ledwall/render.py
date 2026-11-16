@@ -56,10 +56,25 @@ def text_fit(d: ImageDraw.ImageDraw, x: int, y: int, w: int, s: str, fonts: list
     return text(d, x, y, s.rstrip(), f, fill)
 
 
+def upscale(img: Image.Image, size: tuple[int, int]) -> Image.Image:
+    """Nearest-neighbour resize by copying pixels. Ubuntu's python3-pil 12.1.1-2ubuntu1.5
+    fails every NEAREST resize ("SystemError: ... returned NULL"), so avoid Image.resize."""
+    img = img.convert("RGB")
+    (w, h), (nw, nh) = img.size, size
+    src = img.tobytes()
+    cols = [(x * w // nw) * 3 for x in range(nw)]
+    out = bytearray()
+    for y in range(nh):
+        row = (y * h // nh) * w * 3
+        for c in cols:
+            out += src[row + c:row + c + 3]
+    return Image.frombytes("RGB", size, bytes(out))
+
+
 def to_rgb565(img: Image.Image, size: tuple[int, int] = (W, H)) -> bytes:
     """Pack for the panel, scaling the canvas up (nearest) to the panel's size."""
     if img.size != size:
-        img = img.resize(size, Image.Resampling.NEAREST)
+        img = upscale(img, size)
     raw = img.convert("RGB").tobytes()
     out = bytearray(size[0] * size[1] * 2)
     j = 0

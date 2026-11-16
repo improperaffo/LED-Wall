@@ -9,7 +9,7 @@ import time
 from PIL import Image, ImageDraw
 
 from ..icons import draw_icon
-from ..render import canvas, font, text
+from ..render import canvas, font, text, upscale
 from . import Screen
 from .weather import TMAX, TMIN, temp_color
 
@@ -35,7 +35,7 @@ def bang(img, x: int, y: int):
 def icon2x(img, x: int, y: int, code):
     small = Image.new("RGB", (11, 11))
     draw_icon(small, 0, 0, code)
-    img.paste(small.resize((22, 22), Image.Resampling.NEAREST), (x, y))
+    img.paste(upscale(small, (22, 22)), (x, y))
 
 
 def hour_label(t: float) -> tuple[str, tuple]:
